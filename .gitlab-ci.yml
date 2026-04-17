@@ -1,0 +1,5 @@
+include:
+  - project: "mrpelz/boilerplate"
+    ref: main
+    file: "/gitlab/.gitlab-ci.yml"
+    # file: "/gitlab/.monorepo.gitlab-ci.yml"

@@ -20,6 +20,18 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
-    "@mrpelz/boilerplate-node": "^15.1.1"
+    "@mrpelz/boilerplate-node": "latest",
+    "@mrpelz/misc-utils": "latest",
+    "@mrpelz/observable": "latest",
+    "express": "latest",
+    "express-zod-safe": "latest",
+    "pino": "latest",
+    "pino-http": "latest",
+    "proper-tags": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "pino-pretty": "latest"
   }
 }

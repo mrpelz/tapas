@@ -20,6 +20,7 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "dependencies": {
+    "@bradenmacdonald/s3-lite-client": "latest",
     "@mrpelz/boilerplate-node": "latest",
     "@mrpelz/misc-utils": "latest",
     "@mrpelz/observable": "latest",
@@ -27,11 +28,11 @@
     "express-zod-safe": "latest",
     "pino": "latest",
     "pino-http": "latest",
+    "pino-pretty": "latest",
     "proper-tags": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "pino-pretty": "latest"
+    "@types/node": "latest"
   }
 }

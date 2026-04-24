@@ -1,14 +1,16 @@
+import { Server } from 'node:http';
+
 import express from 'express';
 import { setGlobalOptions } from 'express-zod-safe';
 import { pinoHttp } from 'pino-http';
 
+import { tmpCleanup } from './controllers/persistence/filesystem.js';
+import { loadTopicsFile, restoreState, saveSate } from './controllers/state.js';
 import { appErrorHandler, validationErrorHandler } from './endpoints/error.js';
 import { router as v1$Router } from './endpoints/v1/$/main.js';
 import { router as v1Router } from './endpoints/v1/main.js';
 import { environment } from './environment.js';
 import { makeLogger } from './logging.js';
-import { tmpCleanup } from './logic/persistence/filesystem.js';
-import { restoreConfig, saveConfig } from './logic/state.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -26,12 +28,23 @@ expressApp.use('/v1', v1Router);
 
 expressApp.use('/v1', appErrorHandler);
 
-export const app = async (): Promise<void> => {
-  await restoreConfig();
+let server: Server | undefined;
 
-  expressApp.listen(environment.PORT, () =>
+export const app = async (): Promise<void> => {
+  await loadTopicsFile();
+  await restoreState();
+
+  server = expressApp.listen(environment.PORT, () =>
     logger.info(`server running on port ${environment.PORT}`),
   );
+
+  if (environment.CONNECTION_TIMEOUT) {
+    logger.info(
+      `setting server connection timeout to ${environment.CONNECTION_TIMEOUT} ms`,
+    );
+
+    server.setTimeout(environment.CONNECTION_TIMEOUT);
+  }
 
   logger.info('started');
 };
@@ -39,6 +52,8 @@ export const app = async (): Promise<void> => {
 export const cleanup = async (): Promise<void> => {
   logger.info('cleanup');
 
-  await saveConfig();
+  server?.close();
+
+  await saveSate();
   await tmpCleanup?.();
 };

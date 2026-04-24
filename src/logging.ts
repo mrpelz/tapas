@@ -2,10 +2,16 @@ import path from 'node:path';
 
 import pino, { type Logger } from 'pino';
 
+import { environment } from './environment.js';
+
 const cwd = process.cwd();
 
 const root = pino({
-  transport: process.stdout.isTTY ? { target: 'pino-pretty' } : undefined,
+  transport:
+    (environment.STDOUT_PRETTIFY ?? process.stdout.isTTY) ||
+    environment.STDOUT_PRETTIFY
+      ? { target: 'pino-pretty' }
+      : undefined,
 });
 
 export const makeLogger = (modulePath: string): Logger => {

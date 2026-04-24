@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import z from 'zod';
 
-import { makeLogger } from './logging.js';
-
-const logger = makeLogger(import.meta.filename);
-
 export enum PersistenceType {
   NONE = 'none',
   MEMORY = 'memory',
@@ -13,7 +9,6 @@ export enum PersistenceType {
 }
 
 const PERSISTENCE_TYPE_DEFAULT = PersistenceType.FILESYSTEM;
-export const TMP_PATH = 'tmp' as const;
 
 export const ContentType = z
   .string()
@@ -22,18 +17,26 @@ export const ContentType = z
     String.raw`must be valid MIME type (e.g. 'application/json')`,
   );
 
+export const Expiration = z.coerce.number().int().min(1).optional();
+
 const EnvironmentBase = z.object({
-  ALLOW_DYNAMIC_TOPICS: z.coerce.boolean().default(true),
-  ALLOW_OPPORTUNISTIC_CONNECTIONS: z.coerce.boolean().default(true),
-  ALLOW_PING_PONG_CUSTOMIZATION: z.coerce.boolean().default(true),
+  ALLOW_DYNAMIC_TOPICS: z.stringbool().default(true),
+  ALLOW_EPHEMERAL_TOPICS: z.stringbool().default(true),
+  ALLOW_OPPORTUNISTIC_CONNECTIONS: z.stringbool().default(true),
+  ALLOW_PING_PONG_CUSTOMIZATION: z.stringbool().default(true),
+
+  CONNECTION_TIMEOUT: z.coerce.number().positive().int().default(0),
 
   FALLBACK_CONTENT_TYPE: ContentType.default('application/octet-stream'),
-
-  PERSISTENCE_TYPE: z.enum(PersistenceType),
+  FALLBACK_EXPIRATION: Expiration,
 
   PING_PONG_INTERVAL: z.coerce.number().positive().int().default(5000),
 
   PORT: z.coerce.number().positive().int().default(3000),
+
+  STDOUT_PRETTIFY: z.stringbool().optional(),
+
+  TOPICS_FILE: z.string().optional(),
 
   UPLOAD_SIZE_LIMIT: z.coerce.number().positive().int().default(0),
 });
@@ -50,30 +53,18 @@ const EnvironmentPersistenceFilesystem = EnvironmentBase.extend({
   PERSISTENCE_TYPE: z.literal(PersistenceType.FILESYSTEM),
 
   // eslint-disable-next-line sort-keys
-  FILESYSTEM_PATH: z
-    .union(
-      [
-        z.literal(TMP_PATH),
-        z
-          .string()
-          .regex(
-            new RegExp(String.raw`^\.?/?(?:\w/?)*$`),
-            String.raw`must be valid path string (i.e. possibly starting with '/' or '.' and subsequent directories delimited with \'/\'`,
-          ),
-      ],
-      String.raw`must be either 'tmp' or file path`,
-    )
-    .default('tmp'),
+  FILESYSTEM_PATH: z.string().optional(),
 });
 
 const EnvironmentPersistenceS3 = EnvironmentBase.extend({
   PERSISTENCE_TYPE: z.literal(PersistenceType.S3),
 
-  S3_ACCESS_KEY: z.string().nonempty(),
-  S3_BUCKET: z.string().nonempty(),
+  S3_ACCESS_KEY: z.string().nonempty().optional(),
+  S3_BUCKET: z.string().nonempty().optional(),
   S3_ENDPOINT: z.url(),
+  S3_PATHSTYLE: z.stringbool().optional(),
   S3_REGION: z.string().nonempty(),
-  S3_SECRET_KEY: z.string().nonempty(),
+  S3_SECRET_KEY: z.string().nonempty().optional(),
 });
 
 const Environment = z.discriminatedUnion(
@@ -96,8 +87,6 @@ export const environment = (() => {
       ...process.env,
     });
   } catch (error) {
-    logger.error(error);
-
     throw new Error(
       `failed to load environment\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -105,4 +94,19 @@ export const environment = (() => {
   }
 })();
 
-logger.info(environment, 'environment loaded');
+(async () => {
+  const { makeLogger } = await import('./logging.js');
+
+  makeLogger(import.meta.filename).info(
+    {
+      ...environment,
+      ...('S3_ACCESS_KEY' in environment && environment.S3_ACCESS_KEY
+        ? { S3_ACCESS_KEY: '***' }
+        : {}),
+      ...('S3_SECRET_KEY' in environment && environment.S3_SECRET_KEY
+        ? { S3_SECRET_KEY: '***' }
+        : {}),
+    },
+    'environment loaded',
+  );
+})();

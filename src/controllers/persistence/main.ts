@@ -5,13 +5,12 @@ import {
 } from '@mrpelz/observable';
 import z from 'zod';
 
-import { environment, PersistenceType, TMP_PATH } from '../../environment.js';
+import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { type PersistenceFilesystem } from './filesystem.js';
+import { PersistenceS3 } from './s3.js';
 
 const logger = makeLogger(import.meta.filename);
-
-export const Expiration = z.coerce.number().int().min(1).optional();
 
 export class Persistence {
   protected readonly _expiresAt = new Observable<Date | undefined>(undefined);
@@ -109,4 +108,7 @@ export class PersistenceMemory extends Persistence {
   }
 }
 
-export type TPersistence = PersistenceMemory | PersistenceFilesystem;
+export type TPersistence =
+  | PersistenceMemory
+  | PersistenceFilesystem
+  | PersistenceS3;

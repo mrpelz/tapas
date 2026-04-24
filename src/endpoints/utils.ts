@@ -1,8 +1,8 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import z from 'zod';
 
+import { type Topic, TopicPath } from '../controllers/topic.js';
 import { makeLogger } from '../logging.js';
-import { type Topic, TopicPath } from '../logic/topic.js';
 import { InternalServerError } from './error.js';
 
 const logger = makeLogger(import.meta.filename);

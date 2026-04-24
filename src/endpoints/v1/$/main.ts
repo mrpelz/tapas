@@ -5,4 +5,4 @@ import { PATH } from '../../utils.js';
 
 export const router = Router({ mergeParams: true });
 
-router.all(PATH, ({ res }) => res?.end('$'));
+router.all(PATH, (_request, response) => response.end('$'));

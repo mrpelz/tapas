@@ -33,6 +33,7 @@ export class Topic {
     path: z.infer<typeof TopicPath>,
     contentType: string,
     persistence?: TPersistence,
+    public readonly isReadOnly = false,
   ) {
     try {
       this.path = TopicPath.parse(path);

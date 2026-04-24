@@ -10,10 +10,11 @@ import path from 'node:path';
 
 import z from 'zod';
 
-import { environment, PersistenceType, TMP_PATH } from '../../environment.js';
+import { safeAsync } from '../../async.js';
+import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { TopicId, TopicPath } from '../topic.js';
-import { Expiration, Persistence } from './main.js';
+import { TopicId } from '../topic.js';
+import { Persistence } from './main.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -24,8 +25,12 @@ export const directory = await (async () => {
     if (PERSISTENCE_TYPE !== PersistenceType.FILESYSTEM) return undefined;
 
     const { FILESYSTEM_PATH } = environment;
-    if (FILESYSTEM_PATH === TMP_PATH) {
-      const tmp = await mkdtempDisposable(path.join(process.cwd(), 'tapas_'));
+    if (FILESYSTEM_PATH === undefined) {
+      const [error, tmp] = await safeAsync(
+        mkdtempDisposable(path.join(process.cwd(), 'tapas_')),
+      );
+      if (error) throw error;
+
       tmpCleanup = () => tmp.remove();
 
       return tmp.path;
@@ -37,7 +42,9 @@ export const directory = await (async () => {
       throw new Error(`path '${dir}' does not exist`);
     }
 
-    const stats = await stat(dir);
+    const [error, stats] = await safeAsync(stat(dir));
+    if (error) throw error;
+
     if (!stats.isDirectory()) {
       throw new Error(`path '${dir}' is not a directory`);
     }
@@ -53,7 +60,7 @@ export const directory = await (async () => {
   }
 })();
 
-if (environment.PERSISTENCE_TYPE === PersistenceType.FILESYSTEM) {
+if (directory) {
   logger.info(`using directory '${directory}'`);
 }
 

@@ -20,7 +20,7 @@ put.use(validation, async ({ body, params, query }, response, next) => {
 
   const topic = await setTopicPayload(
     params.path,
-    body.length > 0 ? body : undefined,
+    body?.length ? body : undefined,
   );
 
   logger.info({ topic });

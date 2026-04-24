@@ -44,7 +44,7 @@ post.use(validation, async ({ body, params, query }, response, next) => {
     query.persist,
     query.expire,
     undefined,
-    body.length > 0 ? body : undefined,
+    body?.length ? body : undefined,
   );
 
   logger.info({ topic });

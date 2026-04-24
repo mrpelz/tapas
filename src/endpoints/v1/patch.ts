@@ -37,7 +37,7 @@ patch.use(validation, async ({ body, params, query }, response, next) => {
     params.path,
     query.persist,
     query.expire,
-    body.length > 0 ? body : undefined,
+    body?.length ? body : undefined,
   );
 
   logger.info({ topic });

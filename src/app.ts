@@ -4,6 +4,7 @@ import express from 'express';
 import { setGlobalOptions } from 'express-zod-safe';
 import { pinoHttp } from 'pino-http';
 
+import { matchConsumerToTopic } from './controllers/matcher/state.js';
 import { tmpCleanup } from './controllers/persistence/filesystem.js';
 import {
   loadTopicsFile,
@@ -37,6 +38,8 @@ let server: Server | undefined;
 export const app = async (): Promise<void> => {
   await loadTopicsFile();
   await restoreState();
+
+  matchConsumerToTopic.trigger();
 
   server = expressApp.listen(environment.PORT, () =>
     logger.info(`server running on port ${environment.PORT}`),

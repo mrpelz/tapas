@@ -114,11 +114,17 @@ export class PersistenceFilesystem extends Persistence {
     await this._getLastModified();
   }
 
-  async set(value: Buffer): Promise<void> {
+  async set(value: Buffer | undefined): Promise<void> {
     const file = await this.value;
-    if (file && file.compare(value) === 0) return;
 
-    await writeFile(this._filePath, value);
+    if (value) {
+      if (file && file.compare(value) === 0) return;
+
+      await writeFile(this._filePath, value);
+    } else {
+      await unlink(this._filePath);
+    }
+
     await this._getLastModified();
   }
 }

@@ -16,6 +16,7 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { matchConsumerToTopic } from '../matcher/state.js';
 import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';
 import { PersistenceS3 } from '../persistence/s3.js';
@@ -92,6 +93,7 @@ export const addTopic = async (
     );
 
     topics.add(topic);
+    matchConsumerToTopic.trigger();
 
     if (body) {
       const [error] = await safeAsync(topic.setPayload(body));
@@ -129,8 +131,8 @@ export const modifyTopic = async (
       );
     }
 
-    if (persistence === true && !topic.persistence) {
-      topic.persistence = (() => {
+    if (persistence === true && !topic.persistence.value) {
+      topic.persistence.value = (() => {
         switch (environment.PERSISTENCE_TYPE) {
           case PersistenceType.MEMORY: {
             return new PersistenceMemory(expiration);
@@ -147,15 +149,15 @@ export const modifyTopic = async (
         }
       })();
     } else if (persistence === false) {
-      const [error] = await safeAsync(topic.persistence?.remove());
+      const [error] = await safeAsync(topic.persistence.value?.set(undefined));
       if (error) throw error;
 
       // eslint-disable-next-line require-atomic-updates
-      topic.persistence = undefined;
+      topic.persistence.value = undefined;
     }
 
-    if (topic.persistence && expiration !== undefined) {
-      topic.persistence.expiration.value =
+    if (topic.persistence.value && expiration !== undefined) {
+      topic.persistence.value.expiration.value =
         expiration === 0 ? undefined : expiration;
     }
 
@@ -186,7 +188,7 @@ export const getTopicPayload = async (
       );
     }
 
-    const [error, payload] = await safeAsync(topic.persistence?.value);
+    const [error, payload] = await safeAsync(topic.persistence.value?.value);
     if (error) throw error;
 
     return [topic, payload];
@@ -194,7 +196,7 @@ export const getTopicPayload = async (
     logger.error(error);
 
     throw new InternalServerError(
-      `failed to set topic payload\n  ${error instanceof Error ? error.message : ''}`,
+      `failed to get topic payload\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
     );
   }
@@ -212,13 +214,8 @@ export const setTopicPayload = async (
       );
     }
 
-    if (body) {
-      const [error] = await safeAsync(topic.setPayload(body));
-      if (error) throw error;
-    } else {
-      const [error] = await safeAsync(topic.setPayload(undefined));
-      if (error) throw error;
-    }
+    const [error] = await safeAsync(topic.setPayload(body));
+    if (error) throw error;
 
     return topic;
   } catch (error) {

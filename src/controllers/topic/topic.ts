@@ -1,3 +1,4 @@
+import { Observable } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
@@ -25,7 +26,7 @@ export class Topic {
 
   readonly contentType: z.infer<typeof ContentType>;
   readonly path: z.infer<typeof TopicPath>;
-  persistence: TPersistence | undefined;
+  readonly persistence = new Observable<TPersistence | undefined>(undefined);
   readonly state = new ReadOnlyNullState(this._state);
 
   constructor(
@@ -49,26 +50,39 @@ export class Topic {
       );
     }
 
-    this.persistence = persistence;
+    this.persistence.value = persistence;
 
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
   }
 
+  async eventualPayload(): Promise<Buffer> {
+    const { promise, resolve } = Promise.withResolvers<Buffer>();
+
+    const observer = this._state.observe((value) => {
+      if (!value) return;
+
+      observer.remove();
+      resolve(value);
+    });
+
+    const { value: persistence } = this.persistence.value ?? {};
+    if (persistence) {
+      const value = await persistence;
+      if (value) {
+        observer.remove();
+        resolve(value);
+      }
+    }
+
+    return promise;
+  }
+
   async setPayload(value: Buffer | undefined): Promise<void> {
     try {
-      if (value) {
-        const [error] = await safeAsync(this.persistence?.set(value));
-        if (error) throw error;
+      this._state.trigger(value);
 
-        this._state.value = value;
-
-        return;
-      }
-
-      const [error] = await safeAsync(this.persistence?.remove());
+      const [error] = await safeAsync(this.persistence.value?.set(value));
       if (error) throw error;
-
-      this._state.value = undefined;
     } catch (error) {
       logger.error(error);
 

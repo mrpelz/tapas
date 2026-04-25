@@ -99,10 +99,6 @@ export class PersistenceMemory extends Persistence {
     return Promise.resolve(this._deduplicatedPayload.value);
   }
 
-  remove(): void {
-    this._deduplicatedPayload.value = undefined;
-  }
-
   set(value: Buffer | undefined): void {
     this._deduplicatedPayload.value = value;
   }

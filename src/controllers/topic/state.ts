@@ -130,7 +130,7 @@ export const restoreState = async (): Promise<void> => {
         }
 
         if (environment.PERSISTENCE_TYPE === PersistenceType.S3) {
-          const exists = s3client?.exists(STATE_FILE);
+          const exists = await s3client?.exists(STATE_FILE);
           if (!exists) return undefined;
 
           const response = await s3client?.getObject(STATE_FILE);
@@ -143,6 +143,8 @@ export const restoreState = async (): Promise<void> => {
       })(),
     );
     if (error) throw error;
+
+    if (!stored) return;
 
     for (const [
       topicId,
@@ -170,6 +172,13 @@ export const restoreState = async (): Promise<void> => {
 
 export const saveSate = async (): Promise<void> => {
   try {
+    if (!environment.ALLOW_DYNAMIC_TOPICS) {
+      // no need to save state file if dynamic topics are not allowed
+      logger.info('dynamic topics are not allowed, not saving state file');
+
+      return;
+    }
+
     const storable = topics
       .values()
       .filter((topic) => !topic.isReadOnly)
@@ -181,18 +190,11 @@ export const saveSate = async (): Promise<void> => {
               topic.path,
               topic.contentType,
               Boolean(topic.persistence),
-              topic.persistence?.expiration.value ?? 0,
+              topic.persistence.value?.expiration.value ?? 0,
             ],
           ] as const,
       )
       .toArray();
-
-    if (!environment.ALLOW_DYNAMIC_TOPICS) {
-      // no need to save state file if dynamic topics are not allowed
-      logger.info('dynamic topics are not allowed, not saving state file');
-
-      return;
-    }
 
     const payload = JSON.stringify(Object.fromEntries(storable), undefined, 2);
 

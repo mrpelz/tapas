@@ -1,3 +1,4 @@
+import { Observable } from '@mrpelz/observable';
 import z from 'zod';
 
 import { makeLogger } from '../../logging.js';
@@ -9,12 +10,19 @@ export const ConsumerPath = z.array(z.string()).default([]);
 
 export class Consumer {
   readonly path: z.infer<typeof ConsumerPath>;
-  readonly topics = new Set<Topic>();
+  readonly topics = new Observable<Topic[]>([]);
 
-  constructor(path: z.infer<typeof ConsumerPath>, opportunistic = false) {
+  constructor(path: z.infer<typeof ConsumerPath>) {
     try {
       this.path = ConsumerPath.parse(path);
       Object.freeze(this.path);
+
+      this.topics.observe((topics) => {
+        logger.info(
+          { topics: topics.map((topic) => topic.path.join('.')) },
+          `matched path '${path.join('.')}' to topics`,
+        );
+      });
     } catch (error) {
       logger.error(error);
 

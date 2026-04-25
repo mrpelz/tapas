@@ -75,19 +75,17 @@ export class PersistenceS3 extends Persistence {
     this._lastModified.value = lastModified;
   }
 
-  async remove(): Promise<void> {
+  async set(value: Buffer | undefined): Promise<void> {
     const file = await this.value;
-    if (!file) return;
 
-    await this._s3Client.deleteObject(this._topicId);
-    await this._getLastModified();
-  }
+    if (value) {
+      if (file && file.compare(value) === 0) return;
 
-  async set(value: Buffer): Promise<void> {
-    const file = await this.value;
-    if (file && file.compare(value) === 0) return;
+      await this._s3Client.putObject(this._topicId, value);
+    } else {
+      await this._s3Client.deleteObject(this._topicId);
+    }
 
-    await this._s3Client.putObject(this._topicId, value);
     await this._getLastModified();
   }
 }

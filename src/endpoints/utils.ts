@@ -25,7 +25,9 @@ export const makeHeaders = (
   topic: Topic,
 ): Record<string, string | string[]> => {
   try {
-    const { persistence } = topic;
+    const {
+      persistence: { value: persistence },
+    } = topic;
 
     const result = {
       'content-type': topic.contentType,

@@ -5,17 +5,17 @@ import path from 'node:path';
 import { arrayCompare } from '@mrpelz/misc-utils/data';
 import z from 'zod';
 
-import { safeAsync } from '../async.js';
+import { safeAsync } from '../../async.js';
 import {
   ContentType,
   environment,
   Expiration,
   PersistenceType,
-} from '../environment.js';
-import { makeLogger } from '../logging.js';
+} from '../../environment.js';
+import { makeLogger } from '../../logging.js';
+import { directory } from '../persistence/filesystem.js';
+import { s3client } from '../persistence/s3.js';
 import { addTopic } from './main.js';
-import { directory } from './persistence/filesystem.js';
-import { s3client } from './persistence/s3.js';
 import { type Topic, TopicId, TopicPath } from './topic.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -180,8 +180,8 @@ export const saveSate = async (): Promise<void> => {
             [
               topic.path,
               topic.contentType,
-              Boolean(topic.persistence.value),
-              topic.persistence.value?.expiration.value ?? 0,
+              Boolean(topic.persistence),
+              topic.persistence?.expiration.value ?? 0,
             ],
           ] as const,
       )

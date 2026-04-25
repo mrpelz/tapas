@@ -3,7 +3,7 @@ import z from 'zod';
 
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { TopicId } from '../topic.js';
+import { TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -76,6 +76,9 @@ export class PersistenceS3 extends Persistence {
   }
 
   async remove(): Promise<void> {
+    const file = await this.value;
+    if (!file) return;
+
     await this._s3Client.deleteObject(this._topicId);
     await this._getLastModified();
   }

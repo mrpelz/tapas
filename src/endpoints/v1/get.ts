@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 
-import { getTopicPayload } from '../../controllers/main.js';
+import { getTopicPayload } from '../../controllers/topic/main.js';
 import { makeLogger } from '../../logging.js';
 import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 

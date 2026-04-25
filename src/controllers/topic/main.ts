@@ -2,23 +2,23 @@ import { randomUUID } from 'node:crypto';
 
 import z from 'zod';
 
-import { safeAsync } from '../async.js';
+import { safeAsync } from '../../async.js';
 import {
   BadRequestError,
   ConflictError,
   InternalServerError,
   NotFoundError,
-} from '../endpoints/error.js';
+} from '../../endpoints/error.js';
 import {
   ContentType,
   environment,
   Expiration,
   PersistenceType,
-} from '../environment.js';
-import { makeLogger } from '../logging.js';
-import { PersistenceFilesystem } from './persistence/filesystem.js';
-import { PersistenceMemory } from './persistence/main.js';
-import { PersistenceS3 } from './persistence/s3.js';
+} from '../../environment.js';
+import { makeLogger } from '../../logging.js';
+import { PersistenceFilesystem } from '../persistence/filesystem.js';
+import { PersistenceMemory } from '../persistence/main.js';
+import { PersistenceS3 } from '../persistence/s3.js';
 import { findTopicById, findTopicByPath, topics } from './state.js';
 import { Topic, TopicId, TopicPath } from './topic.js';
 
@@ -94,7 +94,7 @@ export const addTopic = async (
     topics.add(topic);
 
     if (body) {
-      const [error] = await safeAsync(topic.persistence.value?.set(body));
+      const [error] = await safeAsync(topic.setPayload(body));
       if (error) throw error;
     }
 
@@ -129,8 +129,8 @@ export const modifyTopic = async (
       );
     }
 
-    if (persistence === true && !topic.persistence.value) {
-      topic.persistence.value = (() => {
+    if (persistence === true && !topic.persistence) {
+      topic.persistence = (() => {
         switch (environment.PERSISTENCE_TYPE) {
           case PersistenceType.MEMORY: {
             return new PersistenceMemory(expiration);
@@ -147,20 +147,20 @@ export const modifyTopic = async (
         }
       })();
     } else if (persistence === false) {
-      const [error] = await safeAsync(topic.persistence.value?.remove());
+      const [error] = await safeAsync(topic.persistence?.remove());
       if (error) throw error;
 
       // eslint-disable-next-line require-atomic-updates
-      topic.persistence.value = undefined;
+      topic.persistence = undefined;
     }
 
-    if (topic.persistence.value && expiration !== undefined) {
-      topic.persistence.value.expiration.value =
+    if (topic.persistence && expiration !== undefined) {
+      topic.persistence.expiration.value =
         expiration === 0 ? undefined : expiration;
     }
 
     if (body) {
-      const [error] = await safeAsync(topic.persistence.value?.set(body));
+      const [error] = await safeAsync(topic.setPayload(body));
       if (error) throw error;
     }
 
@@ -186,7 +186,7 @@ export const getTopicPayload = async (
       );
     }
 
-    const [error, payload] = await safeAsync(topic.persistence.value?.value);
+    const [error, payload] = await safeAsync(topic.persistence?.value);
     if (error) throw error;
 
     return [topic, payload];
@@ -213,10 +213,10 @@ export const setTopicPayload = async (
     }
 
     if (body) {
-      const [error] = await safeAsync(topic.persistence.value?.set(body));
+      const [error] = await safeAsync(topic.setPayload(body));
       if (error) throw error;
     } else {
-      const [error] = await safeAsync(topic.persistence.value?.remove());
+      const [error] = await safeAsync(topic.setPayload(undefined));
       if (error) throw error;
     }
 
@@ -248,7 +248,7 @@ export const removeTopic = async (
       );
     }
 
-    const [error] = await safeAsync(topic.persistence.value?.remove());
+    const [error] = await safeAsync(topic.setPayload(undefined));
     if (error) throw error;
 
     topics.delete(topic);

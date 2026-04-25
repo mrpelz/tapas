@@ -1,10 +1,10 @@
-import { Observable } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
-import { ContentType } from '../environment.js';
-import { makeLogger } from '../logging.js';
-import { TPersistence } from './persistence/main.js';
+import { safeAsync } from '../../async.js';
+import { ContentType } from '../../environment.js';
+import { makeLogger } from '../../logging.js';
+import { TPersistence } from '../persistence/main.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -21,11 +21,11 @@ export const TopicPath = z
   .default([]);
 
 export class Topic {
-  private readonly _state = new NullState<unknown>();
+  private readonly _state = new NullState<Buffer | undefined>();
 
   readonly contentType: z.infer<typeof ContentType>;
   readonly path: z.infer<typeof TopicPath>;
-  readonly persistence = new Observable<TPersistence | undefined>(undefined);
+  persistence: TPersistence | undefined;
   readonly state = new ReadOnlyNullState(this._state);
 
   constructor(
@@ -49,8 +49,33 @@ export class Topic {
       );
     }
 
-    this.persistence.value = persistence;
+    this.persistence = persistence;
 
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
+  }
+
+  async setPayload(value: Buffer | undefined): Promise<void> {
+    try {
+      if (value) {
+        const [error] = await safeAsync(this.persistence?.set(value));
+        if (error) throw error;
+
+        this._state.value = value;
+
+        return;
+      }
+
+      const [error] = await safeAsync(this.persistence?.remove());
+      if (error) throw error;
+
+      this._state.value = undefined;
+    } catch (error) {
+      logger.error(error);
+
+      throw new Error(
+        `failed to set payload\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      );
+    }
   }
 }

@@ -3,7 +3,7 @@ import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
 
-import { addTopic } from '../../controllers/main.js';
+import { addTopic } from '../../controllers/topic/main.js';
 import { ContentType, environment, Expiration } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { MethodNotAllowedError } from '../error.js';

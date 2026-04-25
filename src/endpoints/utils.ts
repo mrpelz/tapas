@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import z from 'zod';
 
-import { type Topic, TopicPath } from '../controllers/topic.js';
+import { type Topic, TopicPath } from '../controllers/topic/topic.js';
 import { makeLogger } from '../logging.js';
 import { InternalServerError } from './error.js';
 
@@ -25,9 +25,7 @@ export const makeHeaders = (
   topic: Topic,
 ): Record<string, string | string[]> => {
   try {
-    const {
-      persistence: { value: persistence },
-    } = topic;
+    const { persistence } = topic;
 
     const result = {
       'content-type': topic.contentType,

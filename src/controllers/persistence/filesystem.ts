@@ -13,7 +13,7 @@ import z from 'zod';
 import { safeAsync } from '../../async.js';
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { TopicId } from '../topic.js';
+import { TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 
 const logger = makeLogger(import.meta.filename);

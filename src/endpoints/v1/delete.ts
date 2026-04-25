@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 
-import { removeTopic } from '../../controllers/main.js';
+import { removeTopic } from '../../controllers/topic/main.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { MethodNotAllowedError } from '../error.js';

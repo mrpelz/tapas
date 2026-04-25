@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { Readable } from 'node:stream';
 
 import z from 'zod';
 
@@ -52,7 +53,7 @@ export const addTopic = async (
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
   isReadOnly?: boolean,
-  body?: Buffer,
+  body?: Readable,
 ): Promise<Topic> => {
   try {
     if (findTopicById(topicId)) {
@@ -115,7 +116,7 @@ export const modifyTopic = async (
   topicPath: z.infer<typeof TopicPath>,
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
-  body?: Buffer,
+  body?: Readable,
 ): Promise<Topic> => {
   try {
     const topic = findTopicByPath(topicPath);
@@ -179,7 +180,7 @@ export const modifyTopic = async (
 
 export const getTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
-): Promise<[Topic, Buffer | undefined]> => {
+): Promise<[Topic, Readable | undefined]> => {
   try {
     const topic = findTopicByPath(topicPath);
     if (!topic) {
@@ -188,7 +189,7 @@ export const getTopicPayload = async (
       );
     }
 
-    const [error, payload] = await safeAsync(topic.persistence.value?.value);
+    const [error, payload] = await safeAsync(topic.persistence.value?.stream);
     if (error) throw error;
 
     return [topic, payload];
@@ -204,7 +205,7 @@ export const getTopicPayload = async (
 
 export const setTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
-  body?: Buffer,
+  body?: Readable,
 ): Promise<Topic> => {
   try {
     const topic = findTopicByPath(topicPath);

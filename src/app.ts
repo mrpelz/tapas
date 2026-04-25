@@ -22,7 +22,6 @@ const logger = makeLogger(import.meta.filename);
 const expressApp = express();
 
 expressApp.use(pinoHttp({ logger }));
-expressApp.use(express.raw({ type: '*/*' }));
 
 setGlobalOptions({
   handler: validationErrorHandler,

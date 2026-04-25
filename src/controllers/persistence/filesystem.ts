@@ -1,12 +1,8 @@
-import { existsSync } from 'node:fs';
-import {
-  mkdtempDisposable,
-  readFile,
-  stat,
-  unlink,
-  writeFile,
-} from 'node:fs/promises';
+import { createReadStream, createWriteStream, existsSync } from 'node:fs';
+import { mkdtempDisposable, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
+import { Readable } from 'node:stream';
+import { arrayBuffer } from 'node:stream/consumers';
 
 import z from 'zod';
 
@@ -96,10 +92,10 @@ export class PersistenceFilesystem extends Persistence {
     );
   }
 
-  get value(): Promise<Buffer | undefined> {
-    if (!existsSync(this._filePath)) return Promise.resolve(undefined);
+  get stream(): Readable | undefined {
+    if (!existsSync(this._filePath)) return undefined;
 
-    return readFile(this._filePath);
+    return createReadStream(this._filePath);
   }
 
   private async _getLastModified() {
@@ -114,13 +110,12 @@ export class PersistenceFilesystem extends Persistence {
     await this._getLastModified();
   }
 
-  async set(value: Buffer | undefined): Promise<void> {
-    const file = await this.value;
-
+  async set(value: Readable | undefined): Promise<void> {
     if (value) {
-      if (file && file.compare(value) === 0) return;
+      const stream = createWriteStream(this._filePath);
+      value.pipe(stream);
 
-      await writeFile(this._filePath, value);
+      await arrayBuffer(value);
     } else {
       await unlink(this._filePath);
     }

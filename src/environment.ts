@@ -38,7 +38,7 @@ const EnvironmentBase = z.object({
 
   TOPICS_FILE: z.string().optional(),
 
-  UPLOAD_SIZE_LIMIT: z.coerce.number().positive().int().default(0),
+  UPLOAD_SIZE_LIMIT: z.coerce.string().default('1GB'),
 });
 
 const EnvironmentPersistenceNone = EnvironmentBase.extend({

@@ -4,23 +4,24 @@ import validate from 'express-zod-safe';
 
 import { setTopicPayload } from '../../controllers/topic/main.js';
 import { makeLogger } from '../../logging.js';
-import { Body, makeHeaders, ParamsNonWildcard } from '../utils.js';
+import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
 export const put = Router({ mergeParams: true });
 
 const validation = validate({
-  body: Body,
   params: ParamsNonWildcard,
 });
 
-put.use(validation, async ({ body, params, query }, response, next) => {
-  logger.info({ body, params, query });
+put.use(validation, async (request, response, next) => {
+  const { readableLength, params, query } = request;
+
+  logger.info({ params, query });
 
   const topic = await setTopicPayload(
     params.path,
-    body?.length ? body : undefined,
+    readableLength ? request : undefined,
   );
 
   logger.info({ topic });

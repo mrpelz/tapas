@@ -15,10 +15,6 @@ export const ParamsWildcard = z.object({
   path: z.array(z.string()).default([]),
 });
 
-export const Body = z
-  .any()
-  .transform((input) => (input instanceof Buffer ? input : undefined));
-
 export const PATH = '/{*path}';
 
 export const makeHeaders = (

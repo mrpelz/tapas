@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import z from 'zod';
 
 import { InternalServerError, NotFoundError } from '../../endpoints/error.js';
@@ -19,7 +21,7 @@ const getFirstEventualTopicPayload = (topics: Topic[]) =>
 export const getConsumerPayload = async (
   consumerPath: z.infer<typeof ConsumerPath>,
   opportunistic = false,
-): Promise<readonly [Topic, Buffer | undefined]> => {
+): Promise<readonly [Topic, Readable | undefined]> => {
   try {
     if (TopicPath.safeParse(consumerPath).success) {
       return getTopicPayload(consumerPath);
@@ -41,11 +43,11 @@ export const getConsumerPayload = async (
       const topic = consumer.topics.value.at(0)!;
 
       consumers.delete(consumer);
-      return [topic, await topic.persistence.value?.value] as const;
+      return [topic, await topic.persistence.value?.stream] as const;
     }
 
     const { promise, resolve } =
-      Promise.withResolvers<readonly [Topic, Buffer | undefined]>();
+      Promise.withResolvers<readonly [Topic, Readable | undefined]>();
 
     consumer.topics.observe(async (topics, observer) => {
       resolve(await getFirstEventualTopicPayload(topics));

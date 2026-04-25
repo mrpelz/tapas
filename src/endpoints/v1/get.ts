@@ -1,4 +1,6 @@
 /* eslint-disable new-cap */
+import { Readable } from 'node:stream';
+
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
@@ -36,8 +38,12 @@ get.use(validation, async ({ params, query }, response, next) => {
   logger.info({ topic });
 
   response.set(makeHeaders(topic));
-  response.statusCode = payload?.length ? 200 : 204;
-  response.end(payload);
+
+  if (payload instanceof Readable) {
+    payload.pipe(response);
+  } else {
+    response.end(payload);
+  }
 
   return next();
 });

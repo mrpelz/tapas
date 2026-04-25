@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import { Observable } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
@@ -22,7 +24,7 @@ export const TopicPath = z
   .default([]);
 
 export class Topic {
-  private readonly _state = new NullState<Buffer | undefined>();
+  private readonly _state = new NullState<Readable | undefined>();
 
   readonly contentType: z.infer<typeof ContentType>;
   readonly path: z.infer<typeof TopicPath>;
@@ -55,8 +57,8 @@ export class Topic {
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
   }
 
-  async eventualPayload(): Promise<Buffer> {
-    const { promise, resolve } = Promise.withResolvers<Buffer>();
+  async eventualPayload(): Promise<Readable> {
+    const { promise, resolve } = Promise.withResolvers<Readable>();
 
     const observer = this._state.observe((value) => {
       if (!value) return;
@@ -65,9 +67,10 @@ export class Topic {
       resolve(value);
     });
 
-    const { value: persistence } = this.persistence.value ?? {};
+    const { stream: persistence } = this.persistence.value ?? {};
     if (persistence) {
       const value = await persistence;
+
       if (value) {
         observer.remove();
         resolve(value);
@@ -77,7 +80,7 @@ export class Topic {
     return promise;
   }
 
-  async setPayload(value: Buffer | undefined): Promise<void> {
+  async setPayload(value: Readable | undefined): Promise<void> {
     try {
       this._state.trigger(value);
 

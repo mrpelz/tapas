@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import z from 'zod';
 
@@ -52,7 +54,15 @@ export class PersistenceS3 extends Persistence {
     );
   }
 
-  get value(): Promise<Buffer | undefined> {
+  private async _getLastModified() {
+    const { lastModified } =
+      (await this._s3Client.statObject(this._topicId).catch(() => undefined)) ??
+      {};
+
+    this._lastModified.value = lastModified;
+  }
+
+  get stream(): Promise<Readable | undefined> {
     return (async () => {
       const exists = await this._s3Client.exists(this._topicId);
       if (!exists) return undefined;
@@ -63,28 +73,14 @@ export class PersistenceS3 extends Persistence {
 
       if (!object) return undefined;
 
-      return Buffer.from(await object.bytes());
+      return object.body ? Readable.fromWeb(object.body) : undefined;
     })();
   }
 
-  private async _getLastModified() {
-    const { lastModified } =
-      (await this._s3Client.statObject(this._topicId).catch(() => undefined)) ??
-      {};
-
-    this._lastModified.value = lastModified;
-  }
-
-  async set(value: Buffer | undefined): Promise<void> {
-    const file = await this.value;
-
-    if (value) {
-      if (file && file.compare(value) === 0) return;
-
-      await this._s3Client.putObject(this._topicId, value);
-    } else {
-      await this._s3Client.deleteObject(this._topicId);
-    }
+  async set(value: Readable | undefined): Promise<void> {
+    await (value
+      ? this._s3Client.putObject(this._topicId, Readable.toWeb(value))
+      : this._s3Client.deleteObject(this._topicId));
 
     await this._getLastModified();
   }

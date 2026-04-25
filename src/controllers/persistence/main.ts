@@ -1,3 +1,6 @@
+import { Readable } from 'node:stream';
+import { buffer } from 'node:stream/consumers';
+
 import {
   Observable,
   ProxyObservable,
@@ -95,12 +98,19 @@ export class PersistenceMemory extends Persistence {
     logger.info('constructed PersistenceMemory');
   }
 
-  get value(): Promise<Buffer | undefined> {
-    return Promise.resolve(this._deduplicatedPayload.value);
+  get stream(): Readable | undefined {
+    if (!this._deduplicatedPayload.value) return undefined;
+
+    const stream = new Readable();
+
+    stream.push(this._deduplicatedPayload.value);
+    stream.push(null);
+
+    return stream;
   }
 
-  set(value: Buffer | undefined): void {
-    this._deduplicatedPayload.value = value;
+  async set(value: Readable | undefined): Promise<void> {
+    this._deduplicatedPayload.value = value ? await buffer(value) : undefined;
   }
 }
 

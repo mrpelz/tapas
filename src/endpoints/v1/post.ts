@@ -7,7 +7,7 @@ import { addTopic } from '../../controllers/topic/main.js';
 import { ContentType, environment, Expiration } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { MethodNotAllowedError } from '../error.js';
-import { Body, makeHeaders, ParamsNonWildcard } from '../utils.js';
+import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -23,13 +23,14 @@ const Query = z.object({
 });
 
 const validation = validate({
-  body: Body,
   params: ParamsNonWildcard,
   query: Query,
 });
 
-post.use(validation, async ({ body, params, query }, response, next) => {
-  logger.info({ body, params, query });
+post.use(validation, async (request, response, next) => {
+  const { readableLength, params, query } = request;
+
+  logger.info({ params, query });
 
   if (!environment.ALLOW_DYNAMIC_TOPICS) {
     throw new MethodNotAllowedError(
@@ -44,7 +45,7 @@ post.use(validation, async ({ body, params, query }, response, next) => {
     query.persist,
     query.expire,
     undefined,
-    body?.length ? body : undefined,
+    readableLength ? request : undefined,
   );
 
   logger.info({ topic });

@@ -2,7 +2,8 @@ import z from 'zod';
 
 import { InternalServerError, NotFoundError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
-import { Topic } from '../topic/topic.js';
+import { getTopicPayload } from '../topic/main.js';
+import { Topic, TopicPath } from '../topic/topic.js';
 import { Consumer, ConsumerPath } from './consumer.js';
 import { consumers, matchConsumerToTopic } from './state.js';
 
@@ -20,6 +21,10 @@ export const getConsumerPayload = async (
   opportunistic = false,
 ): Promise<readonly [Topic, Buffer | undefined]> => {
   try {
+    if (TopicPath.safeParse(consumerPath).success) {
+      return getTopicPayload(consumerPath);
+    }
+
     const consumer = new Consumer(consumerPath);
 
     consumers.add(consumer);

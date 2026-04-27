@@ -24,8 +24,6 @@ export class Consumer {
         );
       });
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to construct consumer\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },

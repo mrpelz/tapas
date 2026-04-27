@@ -97,8 +97,6 @@ export const loadTopicsFile = async (): Promise<void> => {
       );
     }
   } catch (error) {
-    logger.error(error);
-
     throw new Error(
       `failed to load topics file\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -159,8 +157,6 @@ export const restoreState = async (): Promise<void> => {
       );
     }
   } catch (error) {
-    logger.error(error);
-
     throw new Error(
       `failed to restore state\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -212,8 +208,6 @@ export const saveSate = async (): Promise<void> => {
       if (error) throw error;
     }
   } catch (error) {
-    logger.error(error);
-
     throw new Error(
       `failed to save state\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },

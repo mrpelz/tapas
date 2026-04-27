@@ -20,31 +20,35 @@ export class AppError extends Error {
   }
 }
 
-export class BadRequestError extends AppError {
+export class ClientError extends AppError {}
+
+export class BadRequestError extends ClientError {
   readonly code = 400;
   readonly head = 'Bad Request';
   readonly name = 'BadRequestError';
 }
 
-export class NotFoundError extends AppError {
+export class NotFoundError extends ClientError {
   readonly code = 404;
   readonly head = 'Not Found';
   readonly name = 'NotFoundError';
 }
 
-export class MethodNotAllowedError extends AppError {
+export class MethodNotAllowedError extends ClientError {
   readonly code = 405;
   readonly head = 'Method Not Allowed';
   readonly name = 'MethodNotAllowedError';
 }
 
-export class ConflictError extends AppError {
+export class ConflictError extends ClientError {
   readonly code = 409;
   readonly head = 'Conflict';
   readonly name = 'ConflictError';
 }
 
-export class InternalServerError extends AppError {
+export class ServerError extends AppError {}
+
+export class InternalServerError extends ServerError {
   readonly head = 'Internal Server Error';
   readonly name = 'InternalServerError';
 }
@@ -114,12 +118,10 @@ export const appErrorHandler: ErrorRequestHandler = (
   response,
   next,
 ) => {
-  const appError = unwrapAppError(error);
-  if (!appError) return next();
+  const [appError, errorChain] = unwrapAppError(error);
+  const { code, data, head, message, name, stack } = appError;
 
-  const [{ code, data, head, message, name }, errorChain] = appError;
-
-  logger.error(
+  logger[appError instanceof ClientError ? 'warn' : 'error'](
     {
       code,
       data,
@@ -127,6 +129,7 @@ export const appErrorHandler: ErrorRequestHandler = (
       head,
       message,
       name,
+      stack,
     },
     `request error (${name})`,
   );

@@ -38,8 +38,6 @@ export class PersistenceS3 extends Persistence {
 
       this._s3Client = s3client;
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to initialize PersistenceS3\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },

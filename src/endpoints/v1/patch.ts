@@ -4,9 +4,8 @@ import validate from 'express-zod-safe';
 import z from 'zod';
 
 import { modifyTopic } from '../../controllers/topic/main.js';
-import { environment, Expiration } from '../../environment.js';
+import { Expiration } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { MethodNotAllowedError } from '../error.js';
 import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -27,12 +26,6 @@ patch.use(validation, async (request, response, next) => {
   const { readableLength, params, query } = request;
 
   logger.info({ params, query });
-
-  if (!environment.ALLOW_DYNAMIC_TOPICS) {
-    throw new MethodNotAllowedError(
-      String.raw`'ALLOW_DYNAMIC_TOPICS' is false, cannot patch topic`,
-    );
-  }
 
   const topic = await modifyTopic(
     params.path,

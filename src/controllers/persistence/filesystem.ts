@@ -47,8 +47,6 @@ export const directory = await (async () => {
 
     return dir;
   } catch (error) {
-    logger.error(error);
-
     throw new Error(
       `failed to setup filesystem directory\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -76,8 +74,6 @@ export class PersistenceFilesystem extends Persistence {
 
       this._filePath = path.join(directory, topicId);
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to initialize PersistenceFilesystem\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },

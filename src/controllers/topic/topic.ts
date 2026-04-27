@@ -44,8 +44,6 @@ export class Topic {
 
       this.contentType = ContentType.parse(contentType);
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to construct topic\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },
@@ -57,7 +55,7 @@ export class Topic {
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
   }
 
-  async eventualPayload(): Promise<Readable> {
+  async eventualPayload(ignoreCurrent = false): Promise<Readable> {
     const { promise, resolve } = Promise.withResolvers<Readable>();
 
     const observer = this._state.observe((value) => {
@@ -67,9 +65,11 @@ export class Topic {
       resolve(value);
     });
 
-    const { stream: persistence } = this.persistence.value ?? {};
-    if (persistence) {
-      const value = await persistence;
+    if (ignoreCurrent) return promise;
+
+    const { stream } = this.persistence.value ?? {};
+    if (stream) {
+      const value = await stream;
 
       if (value) {
         observer.remove();
@@ -87,8 +87,6 @@ export class Topic {
       const [error] = await safeAsync(this.persistence.value?.set(value));
       if (error) throw error;
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to set payload\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },

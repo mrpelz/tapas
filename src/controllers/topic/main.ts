@@ -8,6 +8,7 @@ import {
   BadRequestError,
   ConflictError,
   InternalServerError,
+  MethodNotAllowedError,
   NotFoundError,
 } from '../../endpoints/error.js';
 import {
@@ -24,7 +25,7 @@ import { PersistenceS3 } from '../persistence/s3.js';
 import { findTopicById, findTopicByPath, topics } from './state.js';
 import { Topic, TopicId, TopicPath } from './topic.js';
 
-const logger = makeLogger(import.meta.filename);
+const _logger = makeLogger(import.meta.filename);
 
 export const getTopic = (topicPath: z.infer<typeof TopicPath>): Topic => {
   try {
@@ -37,8 +38,6 @@ export const getTopic = (topicPath: z.infer<typeof TopicPath>): Topic => {
 
     return topic;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to get topic\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -103,8 +102,6 @@ export const addTopic = async (
 
     return topic;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to add topic\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -119,6 +116,12 @@ export const modifyTopic = async (
   body?: Readable,
 ): Promise<Topic> => {
   try {
+    if (!environment.ALLOW_DYNAMIC_TOPICS) {
+      throw new MethodNotAllowedError(
+        String.raw`'ALLOW_DYNAMIC_TOPICS' is false`,
+      );
+    }
+
     const topic = findTopicByPath(topicPath);
     if (!topic) {
       throw new NotFoundError(
@@ -169,8 +172,6 @@ export const modifyTopic = async (
 
     return topic;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to modify topic\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -194,8 +195,6 @@ export const getTopicPayload = async (
 
     return [topic, payload];
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to get topic payload\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -220,8 +219,6 @@ export const setTopicPayload = async (
 
     return topic;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to set topic payload\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },
@@ -253,8 +250,6 @@ export const removeTopic = async (
 
     return topic;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to remove topic\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },

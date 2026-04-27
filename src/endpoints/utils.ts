@@ -5,7 +5,7 @@ import { type Topic, TopicPath } from '../controllers/topic/topic.js';
 import { makeLogger } from '../logging.js';
 import { InternalServerError } from './error.js';
 
-const logger = makeLogger(import.meta.filename);
+const _logger = makeLogger(import.meta.filename);
 
 export const ParamsNonWildcard = z.object({
   path: TopicPath,
@@ -52,8 +52,6 @@ export const makeHeaders = (
 
     return result;
   } catch (error) {
-    logger.error(error);
-
     throw new InternalServerError(
       `failed to make headers\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },

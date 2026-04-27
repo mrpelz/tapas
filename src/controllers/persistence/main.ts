@@ -33,8 +33,6 @@ export class Persistence {
         );
       }
     } catch (error) {
-      logger.error(error);
-
       throw new Error(
         `failed to construct Persistence\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },

@@ -23,7 +23,7 @@ import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';
 import { PersistenceS3 } from '../persistence/s3.js';
 import { findTopicById, findTopicByPath, topics } from './state.js';
-import { Topic, TopicId, TopicPath } from './topic.js';
+import { GetPayloadType, Topic, TopicId, TopicPath } from './topic.js';
 
 const _logger = makeLogger(import.meta.filename);
 
@@ -181,6 +181,7 @@ export const modifyTopic = async (
 
 export const getTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
+  type: GetPayloadType,
 ): Promise<[Topic, Readable | undefined]> => {
   try {
     const topic = findTopicByPath(topicPath);
@@ -190,7 +191,7 @@ export const getTopicPayload = async (
       );
     }
 
-    const [error, payload] = await safeAsync(topic.persistence.value?.stream);
+    const [error, payload] = await safeAsync(topic.getPayload(type));
     if (error) throw error;
 
     return [topic, payload];

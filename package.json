@@ -16,9 +16,6 @@
     "dist/**/*.{js,map,ts}",
     "Dockerfile"
   ],
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
   "dependencies": {
     "@bradenmacdonald/s3-lite-client": "latest",
     "@mrpelz/boilerplate-node": "latest",
@@ -30,9 +27,13 @@
     "pino-http": "latest",
     "pino-pretty": "latest",
     "proper-tags": "latest",
+    "websocket-express": "latest",
+    "ws": "latest",
     "zod": "latest"
   },
   "devDependencies": {
-    "@types/node": "latest"
+    "@types/express": "latest",
+    "@types/node": "latest",
+    "@types/ws": "latest"
   }
 }

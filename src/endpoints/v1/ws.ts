@@ -1,8 +1,7 @@
-/* eslint-disable new-cap */
 import { Readable } from 'node:stream';
 
-import { Router } from 'express';
 import validate from 'express-zod-safe';
+import { Router } from 'websocket-express';
 import z from 'zod';
 
 import { getConsumerPayload } from '../../controllers/matcher/main.js';
@@ -13,7 +12,7 @@ import { makeHeaders, ParamsWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
-export const get = Router({ mergeParams: true });
+export const ws = new Router({ mergeParams: true });
 
 const Query = z.object({
   opportunistic: environment.ALLOW_OPPORTUNISTIC_CONNECTIONS
@@ -33,7 +32,7 @@ const validation = validate({
   query: Query,
 });
 
-get.use(validation, async ({ params, query }, response, next) => {
+ws.use(validation, async ({ params, query }, response, next) => {
   logger.info({ params, query });
 
   const [topic, payload] = await getConsumerPayload(

@@ -1,5 +1,4 @@
-/* eslint-disable new-cap */
-import { Router } from 'express';
+import { Router } from 'websocket-express';
 
 import { makeLogger } from '../../logging.js';
 import { PATH } from '../utils.js';
@@ -9,14 +8,16 @@ import { head } from './head.js';
 import { patch } from './patch.js';
 import { post } from './post.js';
 import { put } from './put.js';
+import { ws } from './ws.js';
 
 const _logger = makeLogger(import.meta.filename);
 
-export const router = Router({ mergeParams: true });
+export const router = new Router({ mergeParams: true });
 
-router.head(PATH, head);
-router.post(PATH, post);
-router.patch(PATH, patch);
-router.put(PATH, put);
-router.get(PATH, get);
 router.delete(PATH, delete_);
+router.get(PATH, get);
+router.head(PATH, head);
+router.patch(PATH, patch);
+router.post(PATH, post);
+router.put(PATH, put);
+router.ws(PATH, ws);

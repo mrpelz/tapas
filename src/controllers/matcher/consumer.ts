@@ -1,4 +1,4 @@
-import { Observable } from '@mrpelz/observable';
+import { Observable, ReadOnlyObservable } from '@mrpelz/observable';
 import z from 'zod';
 
 import { makeLogger } from '../../logging.js';
@@ -9,8 +9,11 @@ const logger = makeLogger(import.meta.filename);
 export const ConsumerPath = z.array(z.string()).default([]);
 
 export class Consumer {
+  private readonly _abort = new AbortController();
+  private readonly _topics = new Observable<Topic[]>([]);
+
   readonly path: z.infer<typeof ConsumerPath>;
-  readonly topics = new Observable<Topic[]>([]);
+  readonly topics = new ReadOnlyObservable(this._topics);
 
   constructor(path: z.infer<typeof ConsumerPath>) {
     try {
@@ -34,5 +37,11 @@ export class Consumer {
       { path: this.path },
       `constructed Consumer with path '${this.path.join('.')}'`,
     );
+  }
+
+  setTopics(topics: Topic[]): void {
+    this._abort.abort();
+
+    this._topics.value = topics;
   }
 }

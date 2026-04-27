@@ -1,6 +1,6 @@
 import { Readable } from 'node:stream';
 
-import { Observable } from '@mrpelz/observable';
+import { Observable, Observer } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
@@ -10,6 +10,20 @@ import { makeLogger } from '../../logging.js';
 import { TPersistence } from '../persistence/main.js';
 
 const logger = makeLogger(import.meta.filename);
+
+export enum GetPayloadType {
+  ALL = 'all',
+  FUTURE = 'future',
+  FUTURE_NON_EMPTY = 'future-non-empty',
+  NON_EMPTY = 'non-empty',
+  PERSISTED = 'persisted',
+}
+
+export type GetPayloadResult<T extends GetPayloadType> = T extends
+  | GetPayloadType.FUTURE_NON_EMPTY
+  | GetPayloadType.NON_EMPTY
+  ? Readable
+  : Readable | undefined;
 
 export const TopicId = z.uuid();
 export const TopicPath = z
@@ -55,27 +69,60 @@ export class Topic {
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
   }
 
-  async eventualPayload(ignoreCurrent = false): Promise<Readable> {
-    const { promise, resolve } = Promise.withResolvers<Readable>();
+  getPayload<T extends GetPayloadType>(
+    type: T,
+    abort?: AbortSignal,
+  ): Promise<GetPayloadResult<T>> {
+    const { promise, resolve } = Promise.withResolvers<GetPayloadResult<T>>();
 
-    const observer = this._state.observe((value) => {
-      if (!value) return;
+    const needsTruthyValueToResolve = [
+      GetPayloadType.FUTURE_NON_EMPTY,
+      GetPayloadType.NON_EMPTY,
+    ].includes(type);
 
-      observer.remove();
-      resolve(value);
-    });
+    let observer: Observer | undefined;
 
-    if (ignoreCurrent) return promise;
+    if (
+      [
+        GetPayloadType.ALL,
+        GetPayloadType.FUTURE_NON_EMPTY,
+        GetPayloadType.FUTURE,
+        GetPayloadType.NON_EMPTY,
+      ].includes(type)
+    ) {
+      observer = this._state.observe((value) => {
+        if (abort?.aborted) return;
+        if (needsTruthyValueToResolve && !value) {
+          return;
+        }
 
-    const { stream } = this.persistence.value ?? {};
-    if (stream) {
-      const value = await stream;
-
-      if (value) {
-        observer.remove();
-        resolve(value);
-      }
+        observer?.remove();
+        resolve(value as GetPayloadResult<T>);
+      });
     }
+
+    if (
+      [
+        GetPayloadType.ALL,
+        GetPayloadType.NON_EMPTY,
+        GetPayloadType.PERSISTED,
+      ].includes(type)
+    ) {
+      (async () => {
+        const { stream } = this.persistence.value ?? {};
+        if (stream) {
+          const value = await stream;
+
+          if (abort?.aborted) return;
+          if (needsTruthyValueToResolve && !value) return;
+
+          observer?.remove();
+          resolve(value as GetPayloadResult<T>);
+        }
+      })();
+    }
+
+    abort?.addEventListener('abort', () => observer?.remove());
 
     return promise;
   }

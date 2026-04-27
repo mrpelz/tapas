@@ -1,8 +1,8 @@
 import { Server } from 'node:http';
 
-import express from 'express';
 import { setGlobalOptions } from 'express-zod-safe';
 import { pinoHttp } from 'pino-http';
+import { WebSocketExpress } from 'websocket-express';
 
 import { matchConsumerToTopic } from './controllers/matcher/state.js';
 import { tmpCleanup } from './controllers/persistence/filesystem.js';
@@ -19,9 +19,9 @@ import { makeLogger } from './logging.js';
 
 const logger = makeLogger(import.meta.filename);
 
-const expressApp = express();
+const expressApp = new WebSocketExpress();
 
-expressApp.use(pinoHttp({ logger }));
+expressApp.useHTTP(pinoHttp({ logger }));
 
 setGlobalOptions({
   handler: validationErrorHandler,
@@ -30,7 +30,7 @@ setGlobalOptions({
 expressApp.use('/v1/$', v1$Router);
 expressApp.use('/v1', v1Router);
 
-expressApp.use('/v1', appErrorHandler);
+expressApp.useHTTP('/v1', appErrorHandler);
 
 let server: Server | undefined;
 

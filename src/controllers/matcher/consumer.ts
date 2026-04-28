@@ -1,19 +1,20 @@
-import { Observable, ReadOnlyObservable } from '@mrpelz/observable';
+import { Readable } from 'node:stream';
+
+import { Observable } from '@mrpelz/observable';
 import z from 'zod';
 
+import { safeAsync } from '../../async.js';
+import { InternalServerError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
-import { Topic } from '../topic/topic.js';
+import { GetPayloadType, Topic } from '../topic/topic.js';
 
 const logger = makeLogger(import.meta.filename);
 
 export const ConsumerPath = z.array(z.string()).default([]);
 
 export class Consumer {
-  private readonly _abort = new AbortController();
-  private readonly _topics = new Observable<Topic[]>([]);
-
   readonly path: z.infer<typeof ConsumerPath>;
-  readonly topics = new ReadOnlyObservable(this._topics);
+  readonly topics = new Observable<Topic[]>([]);
 
   constructor(path: z.infer<typeof ConsumerPath>) {
     try {
@@ -39,9 +40,78 @@ export class Consumer {
     );
   }
 
-  setTopics(topics: Topic[]): void {
-    this._abort.abort();
+  private _getFirstEventualTopicPayload(
+    type: GetPayloadType,
+    abort?: AbortController,
+  ) {
+    return Promise.race(
+      this.topics.value.map(
+        async (topic) => [topic, await topic.getPayload(type, abort)] as const,
+      ),
+    );
+  }
 
-    this._topics.value = topics;
+  async getPayload(
+    opportunistic: boolean,
+    type: GetPayloadType,
+    abort: AbortController,
+  ): Promise<readonly [Topic, Readable | undefined]> {
+    try {
+      const { promise, resolve, reject } =
+        Promise.withResolvers<readonly [Topic, Readable | undefined]>();
+
+      let renewedAbort: AbortController | undefined;
+
+      const observer = opportunistic
+        ? this.topics.observe(async () => {
+            renewedAbort?.abort();
+
+            renewedAbort = new AbortController();
+            abort.signal.addEventListener('abort', () => renewedAbort?.abort());
+
+            const [error, result] = await safeAsync(
+              this._getFirstEventualTopicPayload(type, abort),
+            );
+
+            if (error) {
+              reject(error);
+              return;
+            }
+
+            resolve(result);
+          })
+        : undefined;
+
+      abort.signal.addEventListener('abort', () => {
+        observer?.remove();
+      });
+
+      (async () => {
+        const [error, result] = await safeAsync(
+          this._getFirstEventualTopicPayload(type, abort),
+        );
+
+        if (error) {
+          reject(error);
+          return;
+        }
+
+        resolve(result);
+      })();
+
+      const [error, result] = await safeAsync(promise);
+      if (error) throw error;
+
+      observer?.remove();
+
+      return result;
+    } catch (error) {
+      abort.abort();
+
+      throw new InternalServerError(
+        `failed to get payload\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      );
+    }
   }
 }

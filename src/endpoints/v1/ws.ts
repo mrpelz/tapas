@@ -46,7 +46,7 @@ ws.use(validation, async ({ params, query }, response, next) => {
   response.set(makeHeaders(topic));
 
   if (payload instanceof Readable) {
-    payload.pipe(response);
+    payload.pipe(response, { end: true });
   } else {
     response.end(payload);
   }

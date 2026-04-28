@@ -49,8 +49,8 @@ export const matchConsumerToTopic = new NullState(() => {
       ? findTopicByPath(consumer.path)
       : undefined;
 
-    consumer.setTopics(
-      directMatch ? [directMatch] : findTopicsByWildcardPath(consumer.path),
-    );
+    consumer.topics.value = directMatch
+      ? [directMatch]
+      : findTopicsByWildcardPath(consumer.path);
   }
 });

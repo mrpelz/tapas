@@ -33,13 +33,19 @@ const validation = validate({
   query: Query,
 });
 
-get.use(validation, async ({ params, query }, response, next) => {
+get.use(validation, async (request, response, next) => {
+  const { params, query } = request;
+
   logger.info({ params, query });
+
+  const abort = new AbortController();
+  request.addListener('aborted', () => abort.abort());
 
   const [topic, payload] = await getConsumerPayload(
     params.path,
     query.opportunistic,
     query.type,
+    abort,
   );
 
   logger.info({ topic });
@@ -47,7 +53,7 @@ get.use(validation, async ({ params, query }, response, next) => {
   response.set(makeHeaders(topic));
 
   if (payload instanceof Readable) {
-    payload.pipe(response);
+    payload.pipe(response, { end: true });
   } else {
     response.end(payload);
   }

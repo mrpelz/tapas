@@ -182,6 +182,7 @@ export const modifyTopic = async (
 export const getTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
   type: GetPayloadType,
+  abort?: AbortController,
 ): Promise<[Topic, Readable | undefined]> => {
   try {
     const topic = findTopicByPath(topicPath);
@@ -191,11 +192,13 @@ export const getTopicPayload = async (
       );
     }
 
-    const [error, payload] = await safeAsync(topic.getPayload(type));
+    const [error, payload] = await safeAsync(topic.getPayload(type, abort));
     if (error) throw error;
 
     return [topic, payload];
   } catch (error) {
+    abort?.abort();
+
     throw new InternalServerError(
       `failed to get topic payload\n  ${error instanceof Error ? error.message : ''}`,
       { cause: error },

@@ -69,62 +69,74 @@ export class Topic {
     logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
   }
 
-  getPayload<T extends GetPayloadType>(
+  async getPayload<T extends GetPayloadType>(
     type: T,
-    abort?: AbortSignal,
+    abort?: AbortController,
   ): Promise<GetPayloadResult<T>> {
-    const { promise, resolve } = Promise.withResolvers<GetPayloadResult<T>>();
-
-    const needsTruthyValueToResolve = [
-      GetPayloadType.FUTURE_NON_EMPTY,
-      GetPayloadType.NON_EMPTY,
-    ].includes(type);
-
     let observer: Observer | undefined;
 
-    if (
-      [
-        GetPayloadType.ALL,
+    try {
+      const { promise, resolve } = Promise.withResolvers<GetPayloadResult<T>>();
+
+      const needsTruthyValueToResolve = [
         GetPayloadType.FUTURE_NON_EMPTY,
-        GetPayloadType.FUTURE,
         GetPayloadType.NON_EMPTY,
-      ].includes(type)
-    ) {
-      observer = this._state.observe((value) => {
-        if (abort?.aborted) return;
-        if (needsTruthyValueToResolve && !value) {
-          return;
-        }
+      ].includes(type);
 
-        observer?.remove();
-        resolve(value as GetPayloadResult<T>);
-      });
-    }
-
-    if (
-      [
-        GetPayloadType.ALL,
-        GetPayloadType.NON_EMPTY,
-        GetPayloadType.PERSISTED,
-      ].includes(type)
-    ) {
-      (async () => {
-        const { stream } = this.persistence.value ?? {};
-        if (stream) {
-          const value = await stream;
-
-          if (abort?.aborted) return;
-          if (needsTruthyValueToResolve && !value) return;
+      if (
+        [
+          GetPayloadType.ALL,
+          GetPayloadType.FUTURE_NON_EMPTY,
+          GetPayloadType.FUTURE,
+          GetPayloadType.NON_EMPTY,
+        ].includes(type)
+      ) {
+        observer = this._state.observe((value) => {
+          if (abort?.signal.aborted) return;
+          if (needsTruthyValueToResolve && !value) {
+            return;
+          }
 
           observer?.remove();
           resolve(value as GetPayloadResult<T>);
-        }
-      })();
+        });
+      }
+
+      if (
+        [
+          GetPayloadType.ALL,
+          GetPayloadType.NON_EMPTY,
+          GetPayloadType.PERSISTED,
+        ].includes(type)
+      ) {
+        (async () => {
+          const { stream } = this.persistence.value ?? {};
+          if (stream) {
+            const value = await stream;
+
+            if (abort?.signal.aborted) return;
+            if (needsTruthyValueToResolve && !value) return;
+
+            observer?.remove();
+            resolve(value as GetPayloadResult<T>);
+          }
+        })();
+      }
+
+      abort?.signal.addEventListener('abort', () => observer?.remove());
+
+      const [error, result] = await safeAsync(promise);
+      if (error) throw error;
+
+      return result;
+    } catch (error) {
+      observer?.remove();
+
+      throw new Error(
+        `failed to get payload\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      );
     }
-
-    abort?.addEventListener('abort', () => observer?.remove());
-
-    return promise;
   }
 
   async setPayload(value: Readable | undefined): Promise<void> {

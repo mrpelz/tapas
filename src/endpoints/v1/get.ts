@@ -23,9 +23,12 @@ const Query = z.object({
       ),
   type: environment.ALLOW_OPPORTUNISTIC_CONNECTIONS
     ? z.enum(GetPayloadType).default(GetPayloadType.ALL)
-    : z.never(
-        String.raw`'ALLOW_OPPORTUNISTIC_CONNECTIONS' is false, cannot use ignoreCurrent`,
-      ),
+    : z
+        .literal(
+          GetPayloadType.ALL,
+          String.raw`'ALLOW_OPPORTUNISTIC_CONNECTIONS' is false, type must be 'all'`,
+        )
+        .default(GetPayloadType.ALL),
 });
 
 const validation = validate({

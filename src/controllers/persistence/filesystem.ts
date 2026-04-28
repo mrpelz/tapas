@@ -88,10 +88,10 @@ export class PersistenceFilesystem extends Persistence {
     );
   }
 
-  get stream(): Readable | undefined {
+  get stream(): ReadableStream | undefined {
     if (!existsSync(this._filePath)) return undefined;
 
-    return createReadStream(this._filePath);
+    return Readable.toWeb(createReadStream(this._filePath));
   }
 
   private async _getLastModified() {
@@ -106,10 +106,10 @@ export class PersistenceFilesystem extends Persistence {
     await this._getLastModified();
   }
 
-  async set(value: Readable | undefined): Promise<void> {
+  async set(value: ReadableStream | undefined): Promise<void> {
     if (value) {
       const stream = createWriteStream(this._filePath);
-      value.pipe(stream);
+      Readable.fromWeb(value).pipe(stream);
 
       await arrayBuffer(value);
     } else {

@@ -1,4 +1,6 @@
 /* eslint-disable new-cap */
+import { Readable } from 'node:stream';
+
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 
@@ -21,7 +23,7 @@ put.use(validation, async (request, response, next) => {
 
   const topic = await setTopicPayload(
     params.path,
-    readableLength ? request : undefined,
+    readableLength ? Readable.toWeb(request) : undefined,
   );
 
   logger.info({ topic });

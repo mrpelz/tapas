@@ -96,7 +96,7 @@ export class PersistenceMemory extends Persistence {
     logger.info('constructed PersistenceMemory');
   }
 
-  get stream(): Readable | undefined {
+  get stream(): ReadableStream | undefined {
     if (!this._deduplicatedPayload.value) return undefined;
 
     const stream = new Readable();
@@ -104,10 +104,10 @@ export class PersistenceMemory extends Persistence {
     stream.push(this._deduplicatedPayload.value);
     stream.push(null);
 
-    return stream;
+    return Readable.toWeb(stream);
   }
 
-  async set(value: Readable | undefined): Promise<void> {
+  async set(value: ReadableStream | undefined): Promise<void> {
     this._deduplicatedPayload.value = value ? await buffer(value) : undefined;
   }
 }

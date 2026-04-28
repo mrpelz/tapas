@@ -1,14 +1,15 @@
-import { Readable } from 'node:stream';
+import { arrayBuffer } from 'node:stream/consumers';
 
+import { emptyBuffer } from '@mrpelz/misc-utils/data';
 import validate from 'express-zod-safe';
-import { Router } from 'websocket-express';
+import { isWebSocket, Router } from 'websocket-express';
 import z from 'zod';
 
-import { getConsumerPayload } from '../../controllers/matcher/main.js';
+import { streamConsumerPayloads } from '../../controllers/matcher/main.js';
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { makeHeaders, ParamsWildcard } from '../utils.js';
+import { ParamsWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -20,11 +21,13 @@ const Query = z.object({
     : z.never(
         String.raw`'ALLOW_OPPORTUNISTIC_CONNECTIONS' is false, cannot use opportunistic`,
       ),
-  type: environment.ALLOW_OPPORTUNISTIC_CONNECTIONS
-    ? z.enum(GetPayloadType).default(GetPayloadType.ALL)
-    : z.never(
-        String.raw`'ALLOW_OPPORTUNISTIC_CONNECTIONS' is false, cannot use ignoreCurrent`,
-      ),
+  type: z
+    .enum(GetPayloadType)
+    .refine(
+      (value) => value !== GetPayloadType.PERSISTED,
+      `cannot use 'type=${GetPayloadType.PERSISTED}' with websockets`,
+    )
+    .default(GetPayloadType.ALL),
 });
 
 const validation = validate({
@@ -32,24 +35,37 @@ const validation = validate({
   query: Query,
 });
 
-ws.use(validation, async ({ params, query }, response, next) => {
-  logger.info({ params, query });
+ws.use(validation, async (request, response, next) => {
+  if (!isWebSocket(response)) {
+    return next();
+  }
 
-  const [topic, payload] = await getConsumerPayload(
+  const { params, query } = request;
+
+  logger.info({ params, query }, 'websocket');
+
+  const abort = new AbortController();
+  request.addListener('aborted', () => abort.abort());
+
+  const state = streamConsumerPayloads(
     params.path,
     query.opportunistic,
     query.type,
+    abort,
   );
 
-  logger.info({ topic });
+  const websocket = await response.accept();
+  websocket.addEventListener('close', () => abort.abort());
 
-  response.set(makeHeaders(topic));
+  const observer = state.observe(async ([topic, payload]) => {
+    if (websocket.readyState !== websocket.OPEN) return;
 
-  if (payload instanceof Readable) {
-    payload.pipe(response, { end: true });
-  } else {
-    response.end(payload);
-  }
+    logger.info({ topic });
+
+    websocket.send(payload ? await arrayBuffer(payload) : emptyBuffer);
+  });
+
+  abort.signal.addEventListener('abort', () => observer.remove());
 
   return next();
 });

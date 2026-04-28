@@ -1,4 +1,6 @@
 /* eslint-disable new-cap */
+import { Readable } from 'node:stream';
+
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
@@ -31,7 +33,7 @@ patch.use(validation, async (request, response, next) => {
     params.path,
     query.persist,
     query.expire,
-    readableLength ? request : undefined,
+    readableLength ? Readable.toWeb(request) : undefined,
   );
 
   logger.info({ topic });

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import { Readable } from 'node:stream';
 
+import { ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
 import { safeAsync } from '../../async.js';
@@ -23,7 +23,13 @@ import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';
 import { PersistenceS3 } from '../persistence/s3.js';
 import { findTopicById, findTopicByPath, topics } from './state.js';
-import { GetPayloadType, Topic, TopicId, TopicPath } from './topic.js';
+import {
+  GetPayloadType,
+  GetPayloadTypeStreamable,
+  Topic,
+  TopicId,
+  TopicPath,
+} from './topic.js';
 
 const _logger = makeLogger(import.meta.filename);
 
@@ -52,7 +58,7 @@ export const addTopic = async (
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
   isReadOnly?: boolean,
-  body?: Readable,
+  body?: ReadableStream,
 ): Promise<Topic> => {
   try {
     if (findTopicById(topicId)) {
@@ -113,7 +119,7 @@ export const modifyTopic = async (
   topicPath: z.infer<typeof TopicPath>,
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
-  body?: Readable,
+  body?: ReadableStream,
 ): Promise<Topic> => {
   try {
     if (!environment.ALLOW_DYNAMIC_TOPICS) {
@@ -183,7 +189,7 @@ export const getTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
   type: GetPayloadType,
   abort?: AbortController,
-): Promise<[Topic, Readable | undefined]> => {
+): Promise<[Topic, ReadableStream | undefined]> => {
   try {
     const topic = findTopicByPath(topicPath);
     if (!topic) {
@@ -206,9 +212,33 @@ export const getTopicPayload = async (
   }
 };
 
+export const streamTopicPayloads = (
+  topicPath: z.infer<typeof TopicPath>,
+  type: GetPayloadTypeStreamable,
+  abort?: AbortController,
+): [Topic, ReadOnlyNullState<ReadableStream | undefined>] => {
+  try {
+    const topic = findTopicByPath(topicPath);
+    if (!topic) {
+      throw new NotFoundError(
+        `topic with path '${topicPath.join('.')}' does not exist`,
+      );
+    }
+
+    return [topic, topic.streamPayloads(type, abort)];
+  } catch (error) {
+    abort?.abort();
+
+    throw new InternalServerError(
+      `failed to stream topic payloads\n  ${error instanceof Error ? error.message : ''}`,
+      { cause: error },
+    );
+  }
+};
+
 export const setTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
-  body?: Readable,
+  body?: ReadableStream,
 ): Promise<Topic> => {
   try {
     const topic = findTopicByPath(topicPath);

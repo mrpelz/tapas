@@ -15,13 +15,19 @@ import {
 
 const logger = makeLogger(import.meta.filename);
 
-export const ConsumerPath = z
-  .array(z.string())
-  .default([])
-  .openapi({
-    description: String.raw`wildcard path: '*' at the end of the path matches all more specific topic paths, '+' matches with all topic path items in the same position`,
-  });
-registry.register('ConsumerPath', ConsumerPath);
+export const ConsumerPath = registry.registerParameter(
+  'ConsumerPath',
+  z
+    .array(z.string())
+    .default([])
+    .openapi({
+      description: String.raw`wildcard path: '*' at the end of the path matches all more specific topic paths, '+' matches with all topic path items in the same position`,
+      param: {
+        in: 'path',
+        name: 'path',
+      },
+    }),
+);
 
 export class Consumer {
   readonly path: z.infer<typeof ConsumerPath>;

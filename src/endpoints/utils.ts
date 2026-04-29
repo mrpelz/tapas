@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import z from 'zod';
 
+import { ConsumerPath } from '../controllers/consumer/consumer.js';
 import { type Topic, TopicPath } from '../controllers/topic/topic.js';
 import { makeLogger } from '../logging.js';
 import { InternalServerError } from './error.js';
@@ -12,7 +13,7 @@ export const ParamsNonWildcard = z.object({
 });
 
 export const ParamsWildcard = z.object({
-  path: z.array(z.string()).default([]),
+  path: ConsumerPath,
 });
 
 export const PATH = '/{*path}';

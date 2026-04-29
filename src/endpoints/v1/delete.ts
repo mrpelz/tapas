@@ -32,7 +32,7 @@ delete_.use(validation, async ({ params }, response, next) => {
   logger.info({ topic });
 
   response.set(makeHeaders(topic));
-  response.statusCode = 201;
+  response.statusCode = 204;
   response.end();
 
   return next();

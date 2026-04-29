@@ -39,11 +39,7 @@ const exit = async (code = 0) => {
 process.on('uncaughtException', async (cause) => {
   const error = new Error(`uncaughtException\n  ${cause.message}`, { cause });
 
-  logger.fatal({
-    body: error.message,
-    head: error.name,
-    stack: error.stack,
-  });
+  logger.fatal(error);
 
   await sleep(5000);
 
@@ -58,11 +54,7 @@ process.on('unhandledRejection', async (cause) => {
     { cause },
   );
 
-  logger.fatal({
-    body: error.message,
-    head: error.name,
-    stack: error.stack,
-  });
+  logger.fatal(error);
 
   await sleep(5000);
 

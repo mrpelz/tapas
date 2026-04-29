@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable new-cap */
 import { Readable } from 'node:stream';
 
@@ -9,7 +10,9 @@ import { getConsumerPayload } from '../../controllers/consumer/main.js';
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { makeHeaders, ParamsWildcard } from '../utils.js';
+import { errorResponses } from '../error.js';
+import { makeHeaders, ParamsWildcard, PATH } from '../utils.js';
+import { registry } from './openapi.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -62,4 +65,34 @@ get.use(validation, async (request, response, next) => {
   }
 
   return next();
+});
+
+registry.registerPath({
+  description: 'get payload of topic or consumer by path',
+  method: 'get',
+  path: PATH,
+  request: {
+    params: ParamsWildcard,
+    query: Query,
+  },
+  responses: {
+    ...errorResponses,
+    200: {
+      content: {
+        '*/*': {
+          schema: z.unknown().openapi({
+            description:
+              'opaque data using content-type previously specified when creating topic',
+          }),
+        },
+      },
+      description:
+        'payload of directly matched topic or topic matched from consumer payload',
+    },
+    204: {
+      description:
+        'directly topic or topic matched from consumer has empty payload',
+    },
+  },
+  summary: 'get a topic or consumer payload',
 });

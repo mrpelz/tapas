@@ -29,25 +29,33 @@ export type GetPayloadResult<T extends GetPayloadType> = T extends
   ? ReadableStream
   : ReadableStream | undefined;
 
-export const TopicId = z
-  .uuid()
-  .openapi({ description: 'UUID identifying topic and persistence' });
-registry.register('TopicID', TopicId);
+export const TopicId = registry.register(
+  'TopicID',
+  z.uuid().openapi({
+    description: 'UUID identifying topic and persistence',
+  }),
+);
 
-export const TopicPath = z
-  .array(
-    z
-      .string()
-      .regex(
-        new RegExp('^[^*+]+$'),
-        String.raw`must not be wildcard path (i.e. no '*' or '+' path items)`,
-      ),
-  )
-  .default([])
-  .openapi({
-    description: String.raw`non-wildcard path, i.e. no '*' or '+' path items`,
-  });
-registry.register('TopicPath', TopicPath);
+export const TopicPath = registry.registerParameter(
+  'TopicPath',
+  z
+    .array(
+      z
+        .string()
+        .regex(
+          new RegExp('^[^*+]+$'),
+          String.raw`must not be wildcard path (i.e. no '*' or '+' path items)`,
+        ),
+    )
+    .default([])
+    .openapi({
+      description: String.raw`non-wildcard path, i.e. no '*' or '+' path items`,
+      param: {
+        in: 'path',
+        name: 'path',
+      },
+    }),
+);
 
 export const futurizePayloadType = (
   type: GetPayloadTypeStreamable,

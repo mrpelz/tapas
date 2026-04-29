@@ -14,6 +14,7 @@ import {
 import { appErrorHandler, validationErrorHandler } from './endpoints/error.js';
 import { router as v1$Router } from './endpoints/v1/$/main.js';
 import { router as v1Router } from './endpoints/v1/main.js';
+import { logOpenAPISpec } from './endpoints/v1/openapi.js';
 import { environment } from './environment.js';
 import { makeLogger } from './logging.js';
 
@@ -53,6 +54,8 @@ export const app = async (): Promise<void> => {
   }
 
   logger.info('started');
+
+  logOpenAPISpec();
 };
 
 export const cleanup = async (): Promise<void> => {

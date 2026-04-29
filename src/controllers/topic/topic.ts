@@ -5,6 +5,7 @@ import z from 'zod';
 import { safeAsync } from '../../async.js';
 import { ContentType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { registry } from '../../openapi.js';
 import { TPersistence } from '../persistence/main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -28,7 +29,11 @@ export type GetPayloadResult<T extends GetPayloadType> = T extends
   ? ReadableStream
   : ReadableStream | undefined;
 
-export const TopicId = z.uuid();
+export const TopicId = z
+  .uuid()
+  .openapi({ description: 'UUID identifying topic and persistence' });
+registry.register('TopicID', TopicId);
+
 export const TopicPath = z
   .array(
     z
@@ -38,7 +43,11 @@ export const TopicPath = z
         String.raw`must not be wildcard path (i.e. no '*' or '+' path items)`,
       ),
   )
-  .default([]);
+  .default([])
+  .openapi({
+    description: String.raw`non-wildcard path, i.e. no '*' or '+' path items`,
+  });
+registry.register('TopicPath', TopicPath);
 
 export const futurizePayloadType = (
   type: GetPayloadTypeStreamable,

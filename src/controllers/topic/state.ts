@@ -97,10 +97,14 @@ export const loadTopicsFile = async (): Promise<void> => {
       );
     }
   } catch (error) {
-    throw new Error(
-      `failed to load topics file\n  ${error instanceof Error ? error.message : ''}`,
-      { cause: error },
+    logger.error(
+      new Error(
+        `failed to load topics file\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      ),
     );
+
+    return;
   }
 
   logger.info('loaded topics file');
@@ -157,10 +161,14 @@ export const restoreState = async (): Promise<void> => {
       );
     }
   } catch (error) {
-    throw new Error(
-      `failed to restore state\n  ${error instanceof Error ? error.message : ''}`,
-      { cause: error },
+    logger.error(
+      new Error(
+        `failed to restore state\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      ),
     );
+
+    return;
   }
 
   logger.info('restored state');
@@ -208,10 +216,14 @@ export const saveSate = async (): Promise<void> => {
       if (error) throw error;
     }
   } catch (error) {
-    throw new Error(
-      `failed to save state\n  ${error instanceof Error ? error.message : ''}`,
-      { cause: error },
+    logger.error(
+      new Error(
+        `failed to save state\n  ${error instanceof Error ? error.message : ''}`,
+        { cause: error },
+      ),
     );
+
+    return;
   }
 
   logger.info('saved state');

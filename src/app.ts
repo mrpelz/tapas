@@ -12,7 +12,6 @@ import {
   saveSate,
 } from './controllers/topic/state.js';
 import { appErrorHandler, validationErrorHandler } from './endpoints/error.js';
-import { router as v1$Router } from './endpoints/v1/$/main.js';
 import { router as v1Router } from './endpoints/v1/main.js';
 import { logOpenAPISpec } from './endpoints/v1/openapi.js';
 import { environment } from './environment.js';
@@ -28,7 +27,6 @@ setGlobalOptions({
   handler: validationErrorHandler,
 });
 
-expressApp.use('/v1/$', v1$Router);
 expressApp.use('/v1', v1Router);
 
 expressApp.useHTTP('/v1', appErrorHandler);

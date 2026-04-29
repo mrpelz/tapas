@@ -1,4 +1,5 @@
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import { sleep } from '@mrpelz/misc-utils/sleep';
 import z from 'zod';
 
 import { makeLogger } from './logging.js';
@@ -18,13 +19,18 @@ const exit_ = (code: number) => {
   });
 };
 
+let force = false;
 const exit = async (code = 0) => {
+  if (!force) {
+    force = true;
+    await cleanup();
+    await sleep(5000);
+  }
+
   process.removeListener('SIGINT', exit);
   process.removeListener('SIGTERM', exit);
   process.removeListener('SIGUSR1', exit);
   process.removeListener('SIGUSR2', exit);
-
-  await cleanup();
 
   logger.info(`stopping process with exit code '${code}'`);
 

@@ -31,6 +31,7 @@ process.on('uncaughtException', (cause) => {
   logger.fatal({
     body: error.message,
     head: error.name,
+    stack: error.stack,
   });
 
   exit();
@@ -47,6 +48,7 @@ process.on('unhandledRejection', (cause) => {
   logger.fatal({
     body: error.message,
     head: error.name,
+    stack: error.stack,
   });
 
   exit();

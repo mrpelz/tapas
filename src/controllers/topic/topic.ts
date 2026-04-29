@@ -59,12 +59,12 @@ export const futurizePayloadType = (
 };
 
 export class Topic {
-  private readonly _state = new NullState<ReadableStream | undefined>();
+  private _state: ReadableStream | undefined;
+  private readonly _stateRefresh = new NullState();
 
   readonly contentType: z.infer<typeof ContentType>;
   readonly path: z.infer<typeof TopicPath>;
   readonly persistence = new Observable<TPersistence | undefined>(undefined);
-  readonly state = new ReadOnlyNullState(this._state);
 
   constructor(
     public readonly id: z.infer<typeof TopicId>,
@@ -87,7 +87,10 @@ export class Topic {
 
     this.persistence.value = persistence;
 
-    logger.info({ id: this.id }, `constructed Topic with ID '${this.id}'`);
+    logger.info(
+      { id: this.id },
+      `constructed Topic with ID '${this.id}' and path '${this.path.join('.')}'`,
+    );
   }
 
   async getPayload<T extends GetPayloadType>(
@@ -112,14 +115,18 @@ export class Topic {
           GetPayloadType.NON_EMPTY,
         ].includes(type)
       ) {
-        observer = this._state.observe((value) => {
+        observer = this._stateRefresh.observe(() => {
           if (abort?.signal.aborted) return;
-          if (needsTruthyValueToResolve && !value) {
+          if (needsTruthyValueToResolve && !this._state) {
             return;
           }
 
           observer?.remove();
-          resolve(value as GetPayloadResult<T>);
+
+          const [a, b] = this._state?.tee() ?? [];
+          this._state = a;
+
+          resolve(b as GetPayloadResult<T>);
         });
       }
 
@@ -144,7 +151,14 @@ export class Topic {
         })();
       }
 
-      abort?.signal.addEventListener('abort', () => observer?.remove());
+      abort?.signal.addEventListener('abort', () => {
+        observer?.remove();
+
+        logger.info(
+          { id: this.id, path: this.path, type },
+          `aborted getting payload for topic '${this.id}'/'${this.path.join('.')}' with type '${type}'`,
+        );
+      });
 
       const [error, result] = await safeAsync(promise);
       if (error) throw error;
@@ -182,13 +196,16 @@ export class Topic {
           GetPayloadType.NON_EMPTY,
         ].includes(type)
       ) {
-        observer = this._state.observe((value) => {
+        observer = this._stateRefresh.observe(() => {
           if (abort?.signal.aborted) return;
-          if (needsTruthyValueToResolve && !value) {
+          if (needsTruthyValueToResolve && !this._state) {
             return;
           }
 
-          state.trigger(value as GetPayloadResult<T>);
+          const [a, b] = this._state?.tee() ?? [];
+          this._state = a;
+
+          state.trigger(b as GetPayloadResult<T>);
         });
       }
 
@@ -206,7 +223,14 @@ export class Topic {
         })();
       }
 
-      abort?.signal.addEventListener('abort', () => observer?.remove());
+      abort?.signal.addEventListener('abort', () => {
+        observer?.remove();
+
+        logger.info(
+          { id: this.id, path: this.path, type },
+          `aborted streaming payload for topic '${this.id}'/'${this.path.join('.')}' with type '${type}'`,
+        );
+      });
 
       return new ReadOnlyNullState(state);
     } catch (error) {
@@ -224,7 +248,8 @@ export class Topic {
     try {
       const [a, b] = value?.tee() ?? [];
 
-      this._state.trigger(a);
+      this._state = a;
+      this._stateRefresh.trigger();
 
       const [error] = await safeAsync(this.persistence.value?.set(b));
       if (error) throw error;

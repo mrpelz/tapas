@@ -5,6 +5,7 @@ import { safeAsync } from '../../async.js';
 import { InternalServerError, NotFoundError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
 import { getTopicPayload, streamTopicPayloads } from '../topic/main.js';
+import { findTopicByPath } from '../topic/state.js';
 import {
   GetPayloadType,
   GetPayloadTypeStreamable,
@@ -15,6 +16,21 @@ import { Consumer, ConsumerPath } from './consumer.js';
 import { consumers, matchConsumerToTopic } from './state.js';
 
 const _logger = makeLogger(import.meta.filename);
+
+export const getConsumerTopic = (
+  consumerPath: z.infer<typeof ConsumerPath>,
+): Topic | undefined => {
+  try {
+    if (!TopicPath.safeParse(consumerPath).success) return undefined;
+
+    return findTopicByPath(consumerPath);
+  } catch (error) {
+    throw new InternalServerError(
+      `failed to get consumer topic\n  ${error instanceof Error ? error.message : ''}`,
+      { cause: error },
+    );
+  }
+};
 
 export const getAllConsumerPayloads = async (
   consumerPath: z.infer<typeof ConsumerPath>,

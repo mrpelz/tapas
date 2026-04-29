@@ -1,11 +1,15 @@
-import { arrayBuffer } from 'node:stream/consumers';
+import { Readable } from 'node:stream';
+import { buffer } from 'node:stream/consumers';
 
 import { emptyBuffer } from '@mrpelz/misc-utils/data';
 import validate from 'express-zod-safe';
 import { isWebSocket, Router } from 'websocket-express';
 import z from 'zod';
 
-import { streamConsumerPayloads } from '../../controllers/matcher/main.js';
+import {
+  getConsumerTopic,
+  streamConsumerPayloads,
+} from '../../controllers/consumer/main.js';
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
@@ -13,9 +17,17 @@ import { ParamsWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
+export enum WebSocketDirection {
+  BOTH = 'both',
+  EMIT = 'emit',
+  INGEST = 'ingest',
+}
+
 export const ws = new Router({ mergeParams: true });
 
 const Query = z.object({
+  direction: z.enum(WebSocketDirection).default(WebSocketDirection.BOTH),
+  echo: z.stringbool().default(false),
   opportunistic: environment.ALLOW_OPPORTUNISTIC_CONNECTIONS
     ? z.stringbool().default(false)
     : z.never(
@@ -44,28 +56,79 @@ ws.use(validation, async (request, response, next) => {
 
   logger.info({ params, query }, 'websocket');
 
+  let isEmitting = false;
+
   const abort = new AbortController();
   request.addListener('aborted', () => abort.abort());
 
-  const state = streamConsumerPayloads(
-    params.path,
-    query.opportunistic,
-    query.type,
-    abort,
-  );
+  const emitState =
+    query.direction === WebSocketDirection.INGEST
+      ? undefined
+      : streamConsumerPayloads(
+          params.path,
+          query.opportunistic,
+          query.type,
+          abort,
+        );
+
+  const ingestTopic =
+    query.direction === WebSocketDirection.EMIT
+      ? undefined
+      : getConsumerTopic(params.path);
 
   const websocket = await response.accept();
   websocket.addEventListener('close', () => abort.abort());
 
-  const observer = state.observe(async ([topic, payload]) => {
+  const observer = emitState?.observe(async ([, payload]) => {
     if (websocket.readyState !== websocket.OPEN) return;
 
-    logger.info({ topic });
+    // do not re-emit messages sent by same connection
+    if (!query.echo && isEmitting) return;
 
-    websocket.send(payload ? await arrayBuffer(payload) : emptyBuffer);
+    websocket.send(payload ? await buffer(payload) : emptyBuffer);
+
+    logger.info(
+      {
+        path: params.path,
+      },
+      `emitted message for websocket '${params.path.join('.')}'`,
+    );
   });
 
-  abort.signal.addEventListener('abort', () => observer.remove());
+  if (ingestTopic) {
+    logger.info({ topic: ingestTopic });
+
+    websocket.addEventListener('message', async ({ data }) => {
+      const stream = new Readable();
+
+      isEmitting = true;
+      const write = ingestTopic.setPayload(Readable.toWeb(stream));
+      isEmitting = false;
+
+      stream.push(data);
+      stream.push(null);
+
+      await write;
+
+      logger.info(
+        {
+          path: params.path,
+        },
+        `ingested message for websocket '${params.path.join('.')}'`,
+      );
+    });
+  }
+
+  abort.signal.addEventListener('abort', () => {
+    observer?.remove();
+
+    logger.info(
+      {
+        path: params.path,
+      },
+      `aborted websocket request '${params.path.join('.')}'`,
+    );
+  });
 
   return next();
 });

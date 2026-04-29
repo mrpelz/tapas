@@ -4,7 +4,7 @@ import { setGlobalOptions } from 'express-zod-safe';
 import { pinoHttp } from 'pino-http';
 import { WebSocketExpress } from 'websocket-express';
 
-import { matchConsumerToTopic } from './controllers/matcher/state.js';
+import { matchConsumerToTopic } from './controllers/consumer/state.js';
 import { tmpCleanup } from './controllers/persistence/filesystem.js';
 import {
   loadTopicsFile,

@@ -6,7 +6,12 @@ import validate from 'express-zod-safe';
 import z from 'zod';
 
 import { addTopic } from '../../controllers/topic/main.js';
-import { ContentType, environment, Expiration } from '../../environment.js';
+import {
+  ContentType,
+  environment,
+  Expiration,
+  PersistenceType,
+} from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { MethodNotAllowedError } from '../error.js';
 import { makeHeaders, ParamsNonWildcard } from '../utils.js';
@@ -18,10 +23,22 @@ export const post = Router({ mergeParams: true });
 const Query = z.object({
   contentType: ContentType.default(environment.FALLBACK_CONTENT_TYPE),
   expire:
-    environment.FALLBACK_EXPIRATION === undefined
-      ? Expiration
-      : Expiration.default(environment.FALLBACK_EXPIRATION),
-  persist: z.stringbool().default(false),
+    /* eslint-disable prettier/prettier */
+    // eslint-disable-next-line no-nested-ternary
+    environment.PERSISTENCE_TYPE === PersistenceType.NONE
+      ? z.never(
+          `'expire' cannot be used if PERSISTENCE_TYPE is '${PersistenceType.NONE}'`,
+        )
+      : (environment.FALLBACK_EXPIRATION === undefined
+        ? Expiration
+        : Expiration.default(environment.FALLBACK_EXPIRATION)),
+    /* eslint-enable prettier/prettier */
+  persist:
+    environment.PERSISTENCE_TYPE === PersistenceType.NONE
+      ? z.never(
+          `'persist' cannot be used if PERSISTENCE_TYPE is '${PersistenceType.NONE}'`,
+        )
+      : z.stringbool().default(false),
 });
 
 const validation = validate({

@@ -18,7 +18,7 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { matchConsumerToTopic } from '../matcher/state.js';
+import { matchConsumerToTopic } from '../consumer/state.js';
 import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';
 import { PersistenceS3 } from '../persistence/s3.js';
@@ -281,6 +281,7 @@ export const removeTopic = async (
     if (error) throw error;
 
     topics.delete(topic);
+    matchConsumerToTopic.trigger();
 
     return topic;
   } catch (error) {

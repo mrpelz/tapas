@@ -106,6 +106,13 @@ export class Consumer {
 
       abort.signal.addEventListener('abort', () => {
         observer?.remove();
+
+        logger.info(
+          { path: this.path, type },
+          `aborted getting all payloads for consumer '${this.path.join(
+            '.',
+          )}' with type '${type}'`,
+        );
       });
 
       (async () => {
@@ -169,6 +176,13 @@ export class Consumer {
 
       abort.signal.addEventListener('abort', () => {
         observer?.remove();
+
+        logger.info(
+          { path: this.path, type },
+          `aborted getting payload for consumer '${this.path.join(
+            '.',
+          )}' with type '${type}'`,
+        );
       });
 
       (async () => {
@@ -205,7 +219,7 @@ export class Consumer {
     abort: AbortController,
   ): ReadOnlyNullState<readonly [Topic, ReadableStream | undefined]> {
     try {
-      let renewedAbort: AbortController | undefined;
+      let renewedAbort = new AbortController();
       abort.signal.addEventListener('abort', () => renewedAbort?.abort());
 
       const state = new NullState<[Topic, ReadableStream | undefined]>();
@@ -228,7 +242,16 @@ export class Consumer {
         }
       });
 
-      abort.signal.addEventListener('abort', () => topicsObserver.remove());
+      abort.signal.addEventListener('abort', () => {
+        topicsObserver.remove();
+
+        logger.info(
+          { path: this.path, type },
+          `aborted streaming payloads for consumer '${this.path.join(
+            '.',
+          )}' with type '${type}'`,
+        );
+      });
 
       for (const topic of this.topics.value) {
         const observer = topic
@@ -237,7 +260,7 @@ export class Consumer {
             state.trigger([topic, value]);
           });
 
-        abort.signal.addEventListener('abort', () => observer.remove());
+        renewedAbort.signal.addEventListener('abort', () => observer.remove());
       }
 
       return new ReadOnlyNullState(state);

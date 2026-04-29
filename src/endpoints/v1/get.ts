@@ -5,7 +5,7 @@ import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
 
-import { getConsumerPayload } from '../../controllers/matcher/main.js';
+import { getConsumerPayload } from '../../controllers/consumer/main.js';
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
@@ -55,8 +55,8 @@ get.use(validation, async (request, response, next) => {
 
   response.set(makeHeaders(topic));
 
-  if (payload instanceof Readable) {
-    payload.pipe(response, { end: true });
+  if (payload instanceof ReadableStream) {
+    Readable.fromWeb(payload).pipe(response, { end: true });
   } else {
     response.end(payload);
   }

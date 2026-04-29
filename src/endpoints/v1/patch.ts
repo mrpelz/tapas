@@ -6,7 +6,7 @@ import validate from 'express-zod-safe';
 import z from 'zod';
 
 import { modifyTopic } from '../../controllers/topic/main.js';
-import { Expiration } from '../../environment.js';
+import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
 import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 
@@ -15,8 +15,19 @@ const logger = makeLogger(import.meta.filename);
 export const patch = Router({ mergeParams: true });
 
 const Query = z.object({
-  expire: Expiration.optional(),
-  persist: z.stringbool().optional(),
+  expire:
+    environment.PERSISTENCE_TYPE === PersistenceType.NONE
+      ? z.never(
+          `'expire' cannot be used if PERSISTENCE_TYPE is '${PersistenceType.NONE}'`,
+        )
+      : Expiration.optional(),
+
+  persist:
+    environment.PERSISTENCE_TYPE === PersistenceType.NONE
+      ? z.never(
+          `'persist' cannot be used if PERSISTENCE_TYPE is '${PersistenceType.NONE}'`,
+        )
+      : z.stringbool().optional(),
 });
 
 const validation = validate({

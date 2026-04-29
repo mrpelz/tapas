@@ -46,7 +46,7 @@ export class PersistenceS3 extends Persistence {
 
     logger.info(
       { topicId: this._topicId },
-      `constructed PersistenceFilesystem with topic ID '${this._topicId}'`,
+      `constructed PersistenceS3 with topic ID '${this._topicId}'`,
     );
   }
 

@@ -24,7 +24,6 @@ const exit = async (code = 0) => {
   if (!force) {
     force = true;
     await cleanup();
-    await sleep(5000);
   }
 
   process.removeListener('SIGINT', exit);
@@ -37,7 +36,7 @@ const exit = async (code = 0) => {
   exit_(code);
 };
 
-process.on('uncaughtException', (cause) => {
+process.on('uncaughtException', async (cause) => {
   const error = new Error(`uncaughtException\n  ${cause.message}`, { cause });
 
   logger.fatal({
@@ -46,10 +45,12 @@ process.on('uncaughtException', (cause) => {
     stack: error.stack,
   });
 
+  await sleep(5000);
+
   exit();
 });
 
-process.on('unhandledRejection', (cause) => {
+process.on('unhandledRejection', async (cause) => {
   if (!cause) return;
 
   const error = new Error(
@@ -62,6 +63,8 @@ process.on('unhandledRejection', (cause) => {
     head: error.name,
     stack: error.stack,
   });
+
+  await sleep(5000);
 
   exit();
 });

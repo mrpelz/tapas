@@ -2,6 +2,7 @@ import { Router } from 'websocket-express';
 
 import { makeLogger } from '../../logging.js';
 import { PATH } from '../utils.js';
+import { router as $router } from './$/main.js';
 import { delete_ } from './delete.js';
 import { get } from './get.js';
 import { head } from './head.js';
@@ -13,6 +14,8 @@ import { ws } from './ws.js';
 const _logger = makeLogger(import.meta.filename);
 
 export const router = new Router({ mergeParams: true });
+
+router.use('/$', $router);
 
 router.delete(PATH, delete_);
 router.get(PATH, get);

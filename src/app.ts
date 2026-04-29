@@ -28,7 +28,6 @@ setGlobalOptions({
 });
 
 expressApp.use('/v1', v1Router);
-
 expressApp.useHTTP('/v1', appErrorHandler);
 
 let server: Server | undefined;

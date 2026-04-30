@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/naming-convention */
 /* eslint-disable new-cap */
 import { Router } from 'express';
 import validate from 'express-zod-safe';
@@ -6,9 +5,8 @@ import validate from 'express-zod-safe';
 import { removeTopic } from '../../controllers/topic/main.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { errorResponses, MethodNotAllowedError } from '../error.js';
-import { makeHeaders, ParamsNonWildcard, PATH } from '../utils.js';
-import { registry } from './openapi.js';
+import { MethodNotAllowedError } from '../error.js';
+import { makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -36,20 +34,4 @@ delete_.use(validation, async ({ params }, response, next) => {
   response.end();
 
   return next();
-});
-
-registry.registerPath({
-  description: 'delete a topic by path',
-  method: 'delete',
-  path: PATH,
-  request: {
-    params: ParamsNonWildcard,
-  },
-  responses: {
-    ...errorResponses,
-    204: {
-      description: 'deleted',
-    },
-  },
-  summary: 'delete a topic',
 });

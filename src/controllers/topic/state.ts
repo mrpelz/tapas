@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { arrayCompare } from '@mrpelz/misc-utils/data';
@@ -146,7 +146,11 @@ export const restoreState = async (): Promise<void> => {
     );
     if (error) throw error;
 
-    if (!stored) return;
+    if (!stored) {
+      logger.info('restored state is empty');
+
+      return;
+    }
 
     for (const [
       topicId,
@@ -200,20 +204,37 @@ export const saveSate = async (): Promise<void> => {
       )
       .toArray();
 
-    const payload = JSON.stringify(Object.fromEntries(storable), undefined, 2);
+    const payload =
+      storable.length > 0
+        ? JSON.stringify(Object.fromEntries(storable), undefined, 2)
+        : undefined;
 
     if (environment.PERSISTENCE_TYPE === PersistenceType.FILESYSTEM) {
       if (!stateFilePath) return;
+      if (!payload && !existsSync(stateFilePath)) return;
 
       const [error] = await safeAsync(
-        writeFile(stateFilePath, `${payload}\n`, { encoding: 'utf8' }),
+        payload
+          ? writeFile(stateFilePath, `${payload}\n`, { encoding: 'utf8' })
+          : unlink(stateFilePath),
       );
       if (error) throw error;
     }
 
     if (environment.PERSISTENCE_TYPE === PersistenceType.S3) {
-      const [error] = await safeAsync(s3client?.putObject(STATE_FILE, payload));
-      if (error) throw error;
+      if (payload) {
+        const [error] = await safeAsync(
+          s3client?.putObject(STATE_FILE, payload),
+        );
+        if (error) throw error;
+      } else {
+        const [error0, exists] = await safeAsync(s3client?.exists(STATE_FILE));
+        if (error0) throw error0;
+        if (!exists) return;
+
+        const [error1] = await safeAsync(s3client?.deleteObject(STATE_FILE));
+        if (error1) throw error1;
+      }
     }
   } catch (error) {
     logger.error(

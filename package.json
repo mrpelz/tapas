@@ -17,7 +17,6 @@
     "Dockerfile"
   ],
   "dependencies": {
-    "@asteasolutions/zod-to-openapi": "latest",
     "@bradenmacdonald/s3-lite-client": "latest",
     "@mrpelz/boilerplate-node": "latest",
     "@mrpelz/misc-utils": "latest",
@@ -33,6 +32,7 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@asteasolutions/zod-to-openapi": "latest",
     "@types/express": "latest",
     "@types/node": "latest",
     "@types/ws": "latest"

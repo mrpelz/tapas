@@ -1,16 +1,11 @@
-import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { sleep } from '@mrpelz/misc-utils/sleep';
-import z from 'zod';
 
+import { app, cleanup } from './app.js';
 import { makeLogger } from './logging.js';
 
 process.stdin.resume();
 
-extendZodWithOpenApi(z);
-
 const logger = makeLogger(import.meta.filename);
-
-const { app, cleanup } = await import('./app.js');
 
 const exit_ = (code: number) => {
   process.nextTick(() => {

@@ -5,7 +5,6 @@ import z from 'zod';
 import { safeAsync } from '../../async.js';
 import { ContentType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { registry } from '../../openapi.js';
 import { TPersistence } from '../persistence/main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -29,33 +28,18 @@ export type GetPayloadResult<T extends GetPayloadType> = T extends
   ? ReadableStream
   : ReadableStream | undefined;
 
-export const TopicId = registry.register(
-  'TopicID',
-  z.uuid().openapi({
-    description: 'UUID identifying topic and persistence',
-  }),
-);
+export const TopicId = z.uuid();
 
-export const TopicPath = registry.registerParameter(
-  'TopicPath',
-  z
-    .array(
-      z
-        .string()
-        .regex(
-          new RegExp('^[^*+]+$'),
-          String.raw`must not be wildcard path (i.e. no '*' or '+' path items)`,
-        ),
-    )
-    .default([])
-    .openapi({
-      description: String.raw`non-wildcard path, i.e. no '*' or '+' path items`,
-      param: {
-        in: 'path',
-        name: 'path',
-      },
-    }),
-);
+export const TopicPath = z
+  .array(
+    z
+      .string()
+      .regex(
+        new RegExp('^[^*+]+$'),
+        String.raw`must not be wildcard path (i.e. no '*' or '+' path items)`,
+      ),
+  )
+  .default([]);
 
 export const futurizePayloadType = (
   type: GetPayloadTypeStreamable,

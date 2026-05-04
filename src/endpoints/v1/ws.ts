@@ -1,5 +1,4 @@
 import { Readable } from 'node:stream';
-import { buffer } from 'node:stream/consumers';
 
 import { emptyBuffer } from '@mrpelz/misc-utils/data';
 import validate from 'express-zod-safe';
@@ -79,13 +78,20 @@ ws.use(validation, async (request, response, next) => {
   const websocket = await response.accept();
   websocket.addEventListener('close', () => abort.abort());
 
-  const observer = emitState?.observe(async ([, payload]) => {
+  const observer = emitState?.observe(async ([, { length, stream } = {}]) => {
     if (websocket.readyState !== websocket.OPEN) return;
 
     // do not re-emit messages sent by same connection
     if (!query.echo && isEmitting) return;
+    if (length === 0) return;
 
-    websocket.send(payload ? await buffer(payload) : emptyBuffer);
+    if (stream) {
+      for await (const chunk of stream) {
+        websocket.send(chunk, { fin: false });
+      }
+    }
+
+    websocket.send(emptyBuffer, { fin: true });
 
     logger.info(
       {
@@ -99,10 +105,15 @@ ws.use(validation, async (request, response, next) => {
     logger.info({ topic: ingestTopic });
 
     websocket.addEventListener('message', async ({ data }) => {
+      if (!(data instanceof Buffer)) return;
+
       const stream = new Readable();
 
       isEmitting = true;
-      const write = ingestTopic.setPayload(Readable.toWeb(stream));
+      const write =
+        data.length > 0
+          ? { length: data.length, stream: Readable.toWeb(request) }
+          : undefined;
       isEmitting = false;
 
       stream.push(data);

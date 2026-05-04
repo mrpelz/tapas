@@ -1,14 +1,15 @@
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
-import { safeAsync } from '../../async.js';
 import { InternalServerError, NotFoundError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
+import { safeAsync } from '../../utils.js';
 import { getTopicPayload, streamTopicPayloads } from '../topic/main.js';
 import { findTopicByPath } from '../topic/state.js';
 import {
   GetPayloadType,
   GetPayloadTypeStreamable,
+  ReadableStreamWithLength,
   Topic,
   TopicPath,
 } from '../topic/topic.js';
@@ -37,7 +38,7 @@ export const getAllConsumerPayloads = async (
   opportunistic = false,
   type: GetPayloadType = GetPayloadType.ALL,
   abort = new AbortController(),
-): Promise<(readonly [Topic, ReadableStream | undefined])[]> => {
+): Promise<(readonly [Topic, ReadableStreamWithLength | undefined])[]> => {
   try {
     if (!opportunistic && TopicPath.safeParse(consumerPath).success) {
       const [error, result] = await safeAsync(
@@ -88,7 +89,7 @@ export const getConsumerPayload = async (
   opportunistic = false,
   type: GetPayloadType = GetPayloadType.ALL,
   abort = new AbortController(),
-): Promise<readonly [Topic, ReadableStream | undefined]> => {
+): Promise<readonly [Topic, ReadableStreamWithLength | undefined]> => {
   try {
     if (!opportunistic && TopicPath.safeParse(consumerPath).success) {
       const [error, result] = await safeAsync(
@@ -139,11 +140,13 @@ export const streamConsumerPayloads = (
   opportunistic = false,
   type: GetPayloadTypeStreamable = GetPayloadType.ALL,
   abort = new AbortController(),
-): ReadOnlyNullState<readonly [Topic, ReadableStream | undefined]> => {
+): ReadOnlyNullState<
+  readonly [Topic, ReadableStreamWithLength | undefined]
+> => {
   try {
     if (!opportunistic && TopicPath.safeParse(consumerPath).success) {
       const state = new NullState<
-        readonly [Topic, ReadableStream | undefined]
+        readonly [Topic, ReadableStreamWithLength | undefined]
       >();
 
       const [topic, payloads] = streamTopicPayloads(consumerPath, type, abort);

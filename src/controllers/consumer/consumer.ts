@@ -2,13 +2,14 @@ import { Observable } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
-import { safeAsync } from '../../async.js';
 import { InternalServerError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
+import { safeAsync } from '../../utils.js';
 import {
   futurizePayloadType,
   GetPayloadType,
   GetPayloadTypeStreamable,
+  ReadableStreamWithLength,
   Topic,
 } from '../topic/topic.js';
 
@@ -77,11 +78,11 @@ export class Consumer {
     opportunistic: boolean,
     type: GetPayloadType,
     abort: AbortController,
-  ): Promise<(readonly [Topic, ReadableStream | undefined])[]> {
+  ): Promise<(readonly [Topic, ReadableStreamWithLength | undefined])[]> {
     try {
       const { promise, resolve, reject } =
         // eslint-disable-next-line prettier/prettier
-        Promise.withResolvers<(readonly [Topic, ReadableStream | undefined])[]>();
+        Promise.withResolvers<(readonly [Topic, ReadableStreamWithLength | undefined])[]>();
 
       let renewedAbort: AbortController | undefined;
       abort.signal.addEventListener('abort', () => renewedAbort?.abort());
@@ -148,10 +149,12 @@ export class Consumer {
     opportunistic: boolean,
     type: GetPayloadType,
     abort: AbortController,
-  ): Promise<readonly [Topic, ReadableStream | undefined]> {
+  ): Promise<readonly [Topic, ReadableStreamWithLength | undefined]> {
     try {
       const { promise, resolve, reject } =
-        Promise.withResolvers<readonly [Topic, ReadableStream | undefined]>();
+        Promise.withResolvers<
+          readonly [Topic, ReadableStreamWithLength | undefined]
+        >();
 
       let renewedAbort: AbortController | undefined;
       abort.signal.addEventListener('abort', () => renewedAbort?.abort());
@@ -217,12 +220,14 @@ export class Consumer {
   streamPayloads(
     type: GetPayloadTypeStreamable,
     abort: AbortController,
-  ): ReadOnlyNullState<readonly [Topic, ReadableStream | undefined]> {
+  ): ReadOnlyNullState<readonly [Topic, ReadableStreamWithLength | undefined]> {
     try {
       let renewedAbort = new AbortController();
       abort.signal.addEventListener('abort', () => renewedAbort?.abort());
 
-      const state = new NullState<[Topic, ReadableStream | undefined]>();
+      const state = new NullState<
+        [Topic, ReadableStreamWithLength | undefined]
+      >();
       const typeFuturized = futurizePayloadType(type);
 
       const topicsObserver = this.topics.observe((topics) => {

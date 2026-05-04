@@ -2,14 +2,13 @@ import { createReadStream, createWriteStream, existsSync } from 'node:fs';
 import { mkdtempDisposable, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
-import { arrayBuffer } from 'node:stream/consumers';
 
 import z from 'zod';
 
-import { safeAsync } from '../../async.js';
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { TopicId } from '../topic/topic.js';
+import { safeAsync } from '../../utils.js';
+import { ReadableStreamWithLength, TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -88,10 +87,18 @@ export class PersistenceFilesystem extends Persistence {
     );
   }
 
-  get stream(): ReadableStream | undefined {
-    if (!existsSync(this._filePath)) return undefined;
+  get stream(): Promise<ReadableStreamWithLength | undefined> {
+    return (async () => {
+      if (!existsSync(this._filePath)) return undefined;
 
-    return Readable.toWeb(createReadStream(this._filePath));
+      const { size } = await stat(this._filePath);
+      if (size === 0) return undefined;
+
+      return {
+        length: size,
+        stream: Readable.toWeb(createReadStream(this._filePath)),
+      };
+    })();
   }
 
   private async _getLastModified() {
@@ -109,9 +116,7 @@ export class PersistenceFilesystem extends Persistence {
   async set(value: ReadableStream | undefined): Promise<void> {
     if (value) {
       const stream = createWriteStream(this._filePath);
-      Readable.fromWeb(value).pipe(stream);
-
-      await arrayBuffer(value);
+      Readable.fromWeb(value).pipe(stream, { end: true });
     } else {
       await unlink(this._filePath);
     }

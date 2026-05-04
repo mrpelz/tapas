@@ -8,6 +8,11 @@ export enum PersistenceType {
   S3 = 's3',
 }
 
+export enum ForwardStrategy {
+  TEE = 'tee',
+  STORE_AND_FORWARD = 'store-and-forward',
+}
+
 const PERSISTENCE_TYPE_DEFAULT = PersistenceType.FILESYSTEM;
 
 export const ContentType = z
@@ -30,6 +35,8 @@ const EnvironmentBase = z.object({
   FALLBACK_CONTENT_TYPE: ContentType.default('application/octet-stream'),
   FALLBACK_EXPIRATION: Expiration,
 
+  FORWARD_STRATEGY: z.enum(ForwardStrategy).default(ForwardStrategy.TEE),
+
   PING_PONG_INTERVAL: z.coerce.number().positive().int().default(5000),
 
   PORT: z.coerce.number().positive().int().default(3000),
@@ -38,7 +45,7 @@ const EnvironmentBase = z.object({
 
   TOPICS_FILE: z.string().optional(),
 
-  UPLOAD_SIZE_LIMIT: z.coerce.string().default('1GB'),
+  UPLOAD_SIZE_LIMIT: z.coerce.number().optional(),
 });
 
 const EnvironmentPersistenceNone = EnvironmentBase.extend({

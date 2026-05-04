@@ -3,7 +3,7 @@ import z from 'zod';
 
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { TopicId } from '../topic/topic.js';
+import { ReadableStreamWithLength, TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -58,7 +58,7 @@ export class PersistenceS3 extends Persistence {
     this._lastModified.value = lastModified;
   }
 
-  get stream(): Promise<ReadableStream | undefined> {
+  get stream(): Promise<ReadableStreamWithLength | undefined> {
     return (async () => {
       const exists = await this._s3Client.exists(this._topicId);
       if (!exists) return undefined;
@@ -69,7 +69,13 @@ export class PersistenceS3 extends Persistence {
 
       if (!object) return undefined;
 
-      return object.body ?? undefined;
+      const length = Number.parseInt(
+        object.headers.get('content-length') ?? '0',
+        10,
+      );
+      if (!length || !object.body) return undefined;
+
+      return { length, stream: object.body };
     })();
   }
 

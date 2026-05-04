@@ -1,6 +1,4 @@
 /* eslint-disable new-cap */
-import { Readable } from 'node:stream';
-
 import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
@@ -8,7 +6,7 @@ import z from 'zod';
 import { modifyTopic } from '../../controllers/topic/main.js';
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { makeHeaders, ParamsNonWildcard } from '../utils.js';
+import { getBodyReadable, makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
 
@@ -36,7 +34,7 @@ const validation = validate({
 });
 
 patch.use(validation, async (request, response, next) => {
-  const { readableLength, params, query } = request;
+  const { params, query } = request;
 
   logger.info({ params, query });
 
@@ -44,7 +42,7 @@ patch.use(validation, async (request, response, next) => {
     params.path,
     query.persist,
     query.expire,
-    readableLength ? Readable.toWeb(request) : undefined,
+    getBodyReadable(request),
   );
 
   logger.info({ topic });

@@ -2,9 +2,13 @@ import { Observable, Observer } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
-import { safeAsync } from '../../async.js';
-import { ContentType } from '../../environment.js';
+import {
+  ContentType,
+  environment,
+  ForwardStrategy,
+} from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { safeAsync, SizeLimitedStream } from '../../utils.js';
 import { TPersistence } from '../persistence/main.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -22,11 +26,16 @@ export type GetPayloadTypeStreamable = Exclude<
   GetPayloadType.PERSISTED
 >;
 
+export type ReadableStreamWithLength = {
+  length: number;
+  stream: ReadableStream;
+};
+
 export type GetPayloadResult<T extends GetPayloadType> = T extends
   | GetPayloadType.FUTURE_NON_EMPTY
   | GetPayloadType.NON_EMPTY
-  ? ReadableStream
-  : ReadableStream | undefined;
+  ? ReadableStreamWithLength
+  : ReadableStreamWithLength | undefined;
 
 export const TopicId = z.uuid();
 
@@ -60,7 +69,9 @@ export const futurizePayloadType = (
 };
 
 export class Topic {
-  private _state: ReadableStream | undefined;
+  private _ready?: Promise<void>;
+  private _state?: ReadableStreamWithLength;
+
   private readonly _stateRefresh = new NullState();
 
   readonly contentType: z.infer<typeof ContentType>;
@@ -124,10 +135,21 @@ export class Topic {
 
           observer?.remove();
 
-          const [a, b] = this._state?.tee() ?? [];
-          this._state = a;
+          const [a, b] = this._state?.stream.tee() ?? [];
 
-          resolve(b as GetPayloadResult<T>);
+          this._state = a
+            ? // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+              { ...this._state!, stream: a }
+            : undefined;
+
+          resolve(
+            (this._state
+              ? {
+                  length: this._state.length,
+                  stream: b,
+                }
+              : undefined) as GetPayloadResult<T>,
+          );
         });
       }
 
@@ -140,15 +162,21 @@ export class Topic {
       ) {
         (async () => {
           const { stream } = this.persistence.value ?? {};
-          if (stream) {
-            const value = await stream;
 
-            if (abort?.signal.aborted) return;
-            if (needsTruthyValueToResolve && !value) return;
+          const value = await stream;
 
-            observer?.remove();
-            resolve(value as GetPayloadResult<T>);
-          }
+          if (abort?.signal.aborted) return;
+          if (needsTruthyValueToResolve && !value) return;
+
+          observer?.remove();
+          resolve(
+            (value
+              ? {
+                  length: value.length,
+                  stream: value.stream,
+                }
+              : undefined) as GetPayloadResult<T>,
+          );
         })();
       }
 
@@ -203,10 +231,20 @@ export class Topic {
             return;
           }
 
-          const [a, b] = this._state?.tee() ?? [];
-          this._state = a;
+          const [a, b] = this._state?.stream.tee() ?? [];
 
-          state.trigger(b as GetPayloadResult<T>);
+          if (this._state) {
+            this._state = a ? { ...this._state, stream: a } : undefined;
+          }
+
+          state.trigger(
+            (this._state
+              ? {
+                  length: this._state.length,
+                  stream: b,
+                }
+              : undefined) as GetPayloadResult<T>,
+          );
         });
       }
 
@@ -219,7 +257,14 @@ export class Topic {
             if (abort?.signal.aborted) return;
             if (needsTruthyValueToResolve && !value) return;
 
-            state.trigger(value as GetPayloadResult<T>);
+            state.trigger(
+              (value
+                ? {
+                    length: value.length,
+                    stream: value.stream,
+                  }
+                : undefined) as GetPayloadResult<T>,
+            );
           }
         })();
       }
@@ -245,15 +290,67 @@ export class Topic {
   }
 
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  async setPayload(value: ReadableStream | undefined): Promise<void> {
+  async setPayload(value: ReadableStreamWithLength | undefined): Promise<void> {
+    const { length, stream } = value ?? {};
+
+    if (length === 0) {
+      logger.warn('not ingesting zero-length stream as payload');
+
+      return;
+    }
+
     try {
-      const [a, b] = value?.tee() ?? [];
+      if (!length || !stream) {
+        this._state = undefined;
 
-      this._state = a;
-      this._stateRefresh.trigger();
+        if (environment.FORWARD_STRATEGY === ForwardStrategy.TEE) {
+          this._stateRefresh.trigger();
+        }
 
-      const [error] = await safeAsync(this.persistence.value?.set(b));
-      if (error) throw error;
+        const [error] = await safeAsync(this.persistence.value?.set(undefined));
+        if (error) throw error;
+
+        if (
+          environment.FORWARD_STRATEGY === ForwardStrategy.STORE_AND_FORWARD
+        ) {
+          this._stateRefresh.trigger();
+        }
+
+        return;
+      }
+
+      const sizeLimitedStream = stream.pipeThrough(
+        new SizeLimitedStream(length),
+      );
+
+      // eslint-disable-next-line default-case
+      switch (environment.FORWARD_STRATEGY) {
+        case ForwardStrategy.TEE: {
+          const [a, b] = sizeLimitedStream.tee() ?? [];
+
+          this._state = {
+            length,
+            stream: a,
+          };
+          this._stateRefresh.trigger();
+
+          const [error] = await safeAsync(this.persistence.value?.set(b));
+          if (error) throw error;
+          break;
+        }
+
+        case ForwardStrategy.STORE_AND_FORWARD: {
+          const [error] = await safeAsync(
+            this.persistence.value?.set(sizeLimitedStream),
+          );
+          if (error) throw error;
+
+          this._state = await this.persistence.value?.stream;
+          this._stateRefresh.trigger();
+
+          break;
+        }
+      }
     } catch (error) {
       throw new Error(
         `failed to set payload\n  ${error instanceof Error ? error.message : ''}`,

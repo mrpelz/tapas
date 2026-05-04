@@ -1,10 +1,22 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { Readable } from 'node:stream';
+
+import { Request } from 'express';
 import z from 'zod';
 
 import { ConsumerPath } from '../controllers/consumer/consumer.js';
-import { type Topic, TopicPath } from '../controllers/topic/topic.js';
+import {
+  ReadableStreamWithLength,
+  type Topic,
+  TopicPath,
+} from '../controllers/topic/topic.js';
+import { environment } from '../environment.js';
 import { makeLogger } from '../logging.js';
-import { InternalServerError } from './error.js';
+import {
+  InternalServerError,
+  LengthRequiredError,
+  PayloadTooLargeError,
+} from './error.js';
 
 const _logger = makeLogger(import.meta.filename);
 
@@ -17,6 +29,32 @@ export const ParamsWildcard = z.object({
 });
 
 export const PATH = '/{*path}';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const getBodyReadable = <T extends Request<any, any, any, any, any>>(
+  request: T,
+): ReadableStreamWithLength | undefined => {
+  const contentLength = request.get('content-length');
+
+  if (!request.readableLength || !contentLength) return undefined;
+  if (request.readableLength && !contentLength) {
+    throw new LengthRequiredError();
+  }
+
+  const length = Number.parseInt(contentLength, 10);
+  if (!length) return undefined;
+
+  if (environment.UPLOAD_SIZE_LIMIT && length > environment.UPLOAD_SIZE_LIMIT) {
+    throw new PayloadTooLargeError(
+      `${length} is over set limit of ${environment.UPLOAD_SIZE_LIMIT} bytes`,
+    );
+  }
+
+  return {
+    length,
+    stream: Readable.toWeb(request),
+  };
+};
 
 export const makeHeaders = (
   topic: Topic,

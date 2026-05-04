@@ -44,7 +44,7 @@ get.use(validation, async (request, response, next) => {
   const abort = new AbortController();
   request.addListener('aborted', () => abort.abort());
 
-  const [topic, payload] = await getConsumerPayload(
+  const [topic, { length, stream } = {}] = await getConsumerPayload(
     params.path,
     query.opportunistic,
     query.type,
@@ -54,11 +54,14 @@ get.use(validation, async (request, response, next) => {
   logger.info({ topic });
 
   response.set(makeHeaders(topic));
+  response.setHeader('content-length', length ?? 0);
 
-  if (payload instanceof ReadableStream) {
-    Readable.fromWeb(payload).pipe(response, { end: true });
+  if (stream instanceof ReadableStream) {
+    const readable = Readable.fromWeb(stream);
+
+    readable.pipe(response, { end: true });
   } else {
-    response.end(payload);
+    response.end();
   }
 
   return next();

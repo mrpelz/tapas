@@ -46,6 +46,18 @@ export class ConflictError extends ClientError {
   readonly name = 'ConflictError';
 }
 
+export class LengthRequiredError extends ClientError {
+  readonly code = 411;
+  readonly head = 'Length Required';
+  readonly name = 'LengthRequiredError';
+}
+
+export class PayloadTooLargeError extends ClientError {
+  readonly code = 413;
+  readonly head = 'Payload Too Large';
+  readonly name = 'PayloadTooLargeError';
+}
+
 export class ServerError extends AppError {}
 
 export class InternalServerError extends ServerError {

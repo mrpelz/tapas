@@ -3,7 +3,6 @@ import { randomUUID } from 'node:crypto';
 import { ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
-import { safeAsync } from '../../async.js';
 import {
   BadRequestError,
   ConflictError,
@@ -18,6 +17,7 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { safeAsync } from '../../utils.js';
 import { matchConsumerToTopic } from '../consumer/state.js';
 import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';
@@ -26,6 +26,7 @@ import { findTopicById, findTopicByPath, topics } from './state.js';
 import {
   GetPayloadType,
   GetPayloadTypeStreamable,
+  ReadableStreamWithLength,
   Topic,
   TopicId,
   TopicPath,
@@ -58,7 +59,7 @@ export const addTopic = async (
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
   isReadOnly?: boolean,
-  body?: ReadableStream,
+  body?: ReadableStreamWithLength,
 ): Promise<Topic> => {
   try {
     if (findTopicById(topicId)) {
@@ -119,7 +120,7 @@ export const modifyTopic = async (
   topicPath: z.infer<typeof TopicPath>,
   persistence?: boolean,
   expiration?: z.infer<typeof Expiration>,
-  body?: ReadableStream,
+  body?: ReadableStreamWithLength,
 ): Promise<Topic> => {
   try {
     if (!environment.ALLOW_DYNAMIC_TOPICS) {
@@ -189,7 +190,7 @@ export const getTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
   type: GetPayloadType,
   abort?: AbortController,
-): Promise<[Topic, ReadableStream | undefined]> => {
+): Promise<[Topic, ReadableStreamWithLength | undefined]> => {
   try {
     const topic = findTopicByPath(topicPath);
     if (!topic) {
@@ -216,7 +217,7 @@ export const streamTopicPayloads = (
   topicPath: z.infer<typeof TopicPath>,
   type: GetPayloadTypeStreamable,
   abort?: AbortController,
-): [Topic, ReadOnlyNullState<ReadableStream | undefined>] => {
+): [Topic, ReadOnlyNullState<ReadableStreamWithLength | undefined>] => {
   try {
     const topic = findTopicByPath(topicPath);
     if (!topic) {
@@ -238,7 +239,7 @@ export const streamTopicPayloads = (
 
 export const setTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
-  body?: ReadableStream,
+  body?: ReadableStreamWithLength,
 ): Promise<Topic> => {
   try {
     const topic = findTopicByPath(topicPath);

@@ -1,3 +1,5 @@
+import { Readable } from 'node:stream';
+
 import { S3Client } from '@bradenmacdonald/s3-lite-client';
 import z from 'zod';
 
@@ -75,13 +77,13 @@ export class PersistenceS3 extends Persistence {
       );
       if (!length || !object.body) return undefined;
 
-      return { length, stream: object.body };
+      return { length, stream: Readable.fromWeb(object.body) };
     })();
   }
 
-  async set(value: ReadableStream | undefined): Promise<void> {
+  async set(value: Readable | undefined): Promise<void> {
     await (value
-      ? this._s3Client.putObject(this._topicId, value)
+      ? this._s3Client.putObject(this._topicId, Readable.toWeb(value))
       : this._s3Client.deleteObject(this._topicId));
 
     await this._getLastModified();

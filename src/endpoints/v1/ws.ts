@@ -1,5 +1,3 @@
-import { Readable } from 'node:stream';
-
 import { emptyBuffer } from '@mrpelz/misc-utils/data';
 import validate from 'express-zod-safe';
 import { isWebSocket, Router } from 'websocket-express';
@@ -12,6 +10,13 @@ import {
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import {
+  awaitEnd,
+  createReadableFromValue,
+  piggybackReadable,
+  safeAsync,
+  websocketDataLength,
+} from '../../utils.js';
 import { ParamsWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -86,9 +91,14 @@ ws.use(validation, async (request, response, next) => {
     if (length === 0) return;
 
     if (stream) {
-      for await (const chunk of stream) {
-        websocket.send(chunk, { fin: false });
-      }
+      const tee = piggybackReadable(stream);
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const onData = (chunk: any) => websocket.send(chunk, { fin: false });
+      tee.on('data', onData);
+      tee.once('end', () => tee.off('data', onData));
+
+      await awaitEnd(tee);
     }
 
     websocket.send(emptyBuffer, { fin: true });
@@ -105,19 +115,16 @@ ws.use(validation, async (request, response, next) => {
     logger.info({ topic: ingestTopic });
 
     websocket.addEventListener('message', async ({ data }) => {
-      if (!(data instanceof Buffer)) return;
-
-      const stream = new Readable();
+      const length = websocketDataLength(data);
+      const stream = createReadableFromValue(data);
 
       isEmitting = true;
-      const write =
-        data.length > 0
-          ? { length: data.length, stream: Readable.toWeb(request) }
-          : undefined;
-      isEmitting = false;
+      const write = length > 0 ? { length, stream } : undefined;
 
-      stream.push(data);
-      stream.push(null);
+      const [error] = await safeAsync(ingestTopic.setPayload(write));
+      if (error) logger.error(error);
+
+      isEmitting = false;
 
       await write;
 

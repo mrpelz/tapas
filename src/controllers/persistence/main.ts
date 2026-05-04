@@ -10,6 +10,7 @@ import z from 'zod';
 
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { createReadableFromValue } from '../../utils.js';
 import { ReadableStreamWithLength } from '../topic/topic.js';
 import { type PersistenceFilesystem } from './filesystem.js';
 import { PersistenceS3 } from './s3.js';
@@ -101,19 +102,16 @@ export class PersistenceMemory extends Persistence {
     return (async () => {
       if (!this._deduplicatedPayload.value) return undefined;
 
-      const stream = new Readable();
-
-      stream.push(this._deduplicatedPayload.value);
-      stream.push(null);
+      const stream = createReadableFromValue(this._deduplicatedPayload.value);
 
       return {
         length: this._deduplicatedPayload.value.length,
-        stream: Readable.toWeb(stream),
+        stream,
       };
     })();
   }
 
-  async set(value: ReadableStream | undefined): Promise<void> {
+  async set(value: Readable | undefined): Promise<void> {
     this._deduplicatedPayload.value = value ? await buffer(value) : undefined;
   }
 }

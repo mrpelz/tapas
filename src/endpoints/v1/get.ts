@@ -9,6 +9,7 @@ import { getConsumerPayload } from '../../controllers/consumer/main.js';
 import { GetPayloadType } from '../../controllers/topic/topic.js';
 import { environment } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
+import { awaitEnd, piggybackReadable } from '../../utils.js';
 import { makeHeaders, ParamsWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -56,10 +57,12 @@ get.use(validation, async (request, response, next) => {
   response.set(makeHeaders(topic));
   response.setHeader('content-length', length ?? 0);
 
-  if (stream instanceof ReadableStream) {
-    const readable = Readable.fromWeb(stream);
+  if (stream instanceof Readable) {
+    const tee = piggybackReadable(stream);
+    tee.pipe(response, { end: true });
 
-    readable.pipe(response, { end: true });
+    await awaitEnd(tee);
+    response.end();
   } else {
     response.end();
   }

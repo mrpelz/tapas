@@ -7,7 +7,7 @@ import z from 'zod';
 
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { safeAsync } from '../../utils.js';
+import { awaitEnd, safeAsync } from '../../utils.js';
 import { ReadableStreamWithLength, TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 
@@ -96,7 +96,7 @@ export class PersistenceFilesystem extends Persistence {
 
       return {
         length: size,
-        stream: Readable.toWeb(createReadStream(this._filePath)),
+        stream: createReadStream(this._filePath),
       };
     })();
   }
@@ -113,10 +113,12 @@ export class PersistenceFilesystem extends Persistence {
     await this._getLastModified();
   }
 
-  async set(value: ReadableStream | undefined): Promise<void> {
+  async set(value: Readable | undefined): Promise<void> {
     if (value) {
       const stream = createWriteStream(this._filePath);
-      Readable.fromWeb(value).pipe(stream, { end: true });
+      value.pipe(stream, { end: true });
+
+      await awaitEnd(value);
     } else {
       await unlink(this._filePath);
     }

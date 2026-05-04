@@ -1,6 +1,4 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { Readable } from 'node:stream';
-
 import { Request } from 'express';
 import z from 'zod';
 
@@ -52,7 +50,7 @@ export const getBodyReadable = <T extends Request<any, any, any, any, any>>(
 
   return {
     length,
-    stream: Readable.toWeb(request),
+    stream: request,
   };
 };
 

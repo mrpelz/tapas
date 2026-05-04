@@ -30,11 +30,16 @@ export const safeAsync = async <T>(
 export const awaitEnd = (readable: Readable): Promise<void> => {
   logger.info('awaitEnd init');
 
-  const { promise, resolve } = Promise.withResolvers<void>();
+  const { promise, resolve, reject } = Promise.withResolvers<void>();
 
   readable.once('end', () => {
     logger.info('awaitEnd end');
     resolve(undefined);
+  });
+
+  readable.once('error', (cause) => {
+    logger.info('awaitEnd error');
+    reject(cause);
   });
 
   return promise;

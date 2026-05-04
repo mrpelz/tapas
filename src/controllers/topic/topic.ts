@@ -256,7 +256,7 @@ export class Topic {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering
+  // eslint-disable-next-line @typescript-eslint/member-ordering, complexity
   async setPayload(value: ReadableStreamWithLength | undefined): Promise<void> {
     const { length, stream } = value ?? {};
 
@@ -302,7 +302,8 @@ export class Topic {
             const [error] = await safeAsync(this.persistence.value.set(stream));
             if (error) throw error;
           } else {
-            await buffer(stream);
+            const [error] = await safeAsync(buffer(stream));
+            if (error) throw error;
           }
 
           break;
@@ -323,17 +324,22 @@ export class Topic {
           }
 
           this._stateRefresh.trigger();
-          if (this._state) await buffer(this._state.stream);
+
+          if (this._state) {
+            const [error] = await safeAsync(buffer(this._state.stream));
+            if (error) throw error;
+          }
 
           break;
         }
       }
 
       stream.once('error', (error) => {
-        throw error;
+        throw new Error('stream error', { cause: error });
       });
 
-      await end;
+      const [error] = await safeAsync(end);
+      if (error) throw error;
     } catch (error) {
       throw new Error(
         `failed to set payload\n  ${error instanceof Error ? error.message : ''}`,

@@ -146,6 +146,10 @@ export const appErrorHandler: ErrorRequestHandler = (
     `request error (${name})`,
   );
 
+  if (response.headersSent) {
+    return next(appError);
+  }
+
   response.status(code).json({
     code,
     data,

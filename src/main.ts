@@ -32,6 +32,8 @@ const exit = async (code = 0) => {
 };
 
 process.on('uncaughtException', async (cause) => {
+  if (cause.message === 'aborted') return;
+
   const error = new Error(`uncaughtException\n  ${cause.message}`, { cause });
 
   logger.fatal(error);
@@ -43,6 +45,8 @@ process.on('uncaughtException', async (cause) => {
 
 process.on('unhandledRejection', async (cause) => {
   if (!cause) return;
+  if (!(cause instanceof Error)) return;
+  if (cause.message === 'aborted') return;
 
   const error = new Error(
     `uncaughtRejection\n  ${cause instanceof Error ? cause.message : ''}`,

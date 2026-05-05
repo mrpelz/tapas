@@ -90,9 +90,9 @@ ws.use(validation, async (request, response, next) => {
     if (!query.echo && isEmitting) return;
     if (length === 0) return;
 
-    if (stream) {
-      const tee = piggybackReadable(stream);
+    const tee = piggybackReadable(stream);
 
+    if (tee) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const onData = (chunk: any) => websocket.send(chunk, { fin: false });
       tee.on('data', onData);

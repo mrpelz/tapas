@@ -80,8 +80,10 @@ export const abortOnLengthExceeeded = (
   });
 };
 
-export const piggybackReadable = (readable: Readable): Readable => {
-  logger.info('piggybackReadable init');
+export const piggybackReadable = (
+  readable?: Readable,
+): Readable | undefined => {
+  if (!readable) return undefined;
 
   const tee = new Readable({
     read: (size) => readable.read(size),
@@ -111,6 +113,8 @@ export const piggybackReadable = (readable: Readable): Readable => {
 
     tee.destroy(error);
   });
+
+  logger.info('piggybackReadable init');
 
   return tee;
 };

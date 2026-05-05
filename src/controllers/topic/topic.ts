@@ -15,6 +15,7 @@ import { makeLogger } from '../../logging.js';
 import {
   abortOnLengthExceeeded,
   awaitEnd,
+  createReadableFromValue,
   piggybackReadable,
   safeAsync,
 } from '../../utils.js';
@@ -292,10 +293,15 @@ export class Topic {
       // eslint-disable-next-line default-case
       switch (environment.FORWARD_STRATEGY) {
         case ForwardStrategy.TEE: {
-          this._state = {
-            length,
-            stream: piggybackReadable(stream),
-          };
+          const tee = piggybackReadable(stream);
+
+          this._state = tee
+            ? {
+                length,
+                stream: tee,
+              }
+            : undefined;
+
           this._stateRefresh.trigger();
 
           if (this.persistence.value) {
@@ -317,10 +323,15 @@ export class Topic {
             await sleep(0);
             this._state = await this.persistence.value.stream;
           } else {
-            this._state = {
-              length,
-              stream,
-            };
+            const [error, payload] = await safeAsync(buffer(stream));
+            if (error) throw error;
+
+            this._state = payload
+              ? {
+                  length,
+                  stream: createReadableFromValue(payload),
+                }
+              : undefined;
           }
 
           this._stateRefresh.trigger();

@@ -52,13 +52,14 @@ get.use(validation, async (request, response, next) => {
     abort,
   );
 
+  const tee = piggybackReadable(stream);
+
   logger.info({ topic });
 
   response.set(makeHeaders(topic));
   response.setHeader('content-length', length ?? 0);
 
-  if (stream instanceof Readable) {
-    const tee = piggybackReadable(stream);
+  if (tee instanceof Readable) {
     tee.pipe(response, { end: true });
 
     await awaitEnd(tee);

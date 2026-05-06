@@ -3,11 +3,12 @@ import { mkdtempDisposable, stat, unlink } from 'node:fs/promises';
 import path from 'node:path';
 import { Readable } from 'node:stream';
 
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import z from 'zod';
 
 import { environment, Expiration, PersistenceType } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { awaitEnd, safeAsync } from '../../utils.js';
+import { awaitEnd } from '../../utils.js';
 import { ReadableStreamWithLength, TopicId } from '../topic/topic.js';
 import { Persistence } from './main.js';
 

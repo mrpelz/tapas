@@ -1,11 +1,13 @@
 import { Readable } from 'node:stream';
 import { buffer } from 'node:stream/consumers';
 
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { sleep } from '@mrpelz/misc-utils/sleep';
 import { Observable, Observer } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
+import { ServiceUnavailableError } from '../../endpoints/error.js';
 import {
   ContentType,
   environment,
@@ -17,7 +19,6 @@ import {
   awaitEnd,
   createReadableFromValue,
   piggybackReadable,
-  safeAsync,
 } from '../../utils.js';
 import { TPersistence } from '../persistence/main.js';
 
@@ -112,6 +113,73 @@ export class Topic {
       { id: this.id },
       `constructed Topic with ID '${this.id}' and path '${this.path.join('.')}'`,
     );
+  }
+
+  private async _setPayloadEmpty() {
+    this._state = undefined;
+
+    if (environment.FORWARD_STRATEGY === ForwardStrategy.TEE) {
+      this._stateRefresh.trigger();
+    }
+
+    const [error] = await safeAsync(this.persistence.value?.set(undefined));
+    if (error) throw error;
+
+    if (environment.FORWARD_STRATEGY === ForwardStrategy.STORE_AND_FORWARD) {
+      this._stateRefresh.trigger();
+    }
+  }
+
+  private async _setPayloadStoreAndForward(stream: Readable, length: number) {
+    if (this.persistence.value) {
+      const [error] = await safeAsync(this.persistence.value.set(stream));
+      if (error) throw error;
+
+      if (!this._stateRefresh.listeners) return;
+
+      await sleep(0);
+      this._state = await this.persistence.value.stream;
+    } else {
+      const [error, payload] = await safeAsync(buffer(stream));
+      if (error) throw error;
+
+      if (!this._stateRefresh.listeners) return;
+
+      this._state = payload
+        ? {
+            length,
+            stream: createReadableFromValue(payload),
+          }
+        : undefined;
+    }
+
+    this._stateRefresh.trigger();
+
+    if (this._state) {
+      const [error] = await safeAsync(buffer(this._state.stream));
+      if (error) throw error;
+    }
+  }
+
+  private async _setPayloadTee(stream: Readable, length: number) {
+    const tee = piggybackReadable(stream);
+
+    this._state = tee
+      ? {
+          length,
+          stream: tee,
+        }
+      : undefined;
+
+    this._stateRefresh.trigger();
+
+    if (this.persistence.value) {
+      const [error] = await safeAsync(this.persistence.value.set(stream));
+      if (error) throw error;
+    } else {
+      const [error] = await safeAsync(buffer(stream));
+      if (error) throw error;
+    }
   }
 
   async getPayload<T extends GetPayloadType>(
@@ -257,9 +325,15 @@ export class Topic {
     }
   }
 
-  // eslint-disable-next-line @typescript-eslint/member-ordering, complexity
+  // eslint-disable-next-line @typescript-eslint/member-ordering
   async setPayload(value: ReadableStreamWithLength | undefined): Promise<void> {
     const { length, stream } = value ?? {};
+
+    if (this._state) {
+      logger.warn('denying set payload while other upload is taking place');
+
+      throw new ServiceUnavailableError('upload in progress');
+    }
 
     if (length === 0) {
       logger.warn('not ingesting zero-length stream as payload');
@@ -269,20 +343,7 @@ export class Topic {
 
     try {
       if (!length || !stream) {
-        this._state = undefined;
-
-        if (environment.FORWARD_STRATEGY === ForwardStrategy.TEE) {
-          this._stateRefresh.trigger();
-        }
-
-        const [error] = await safeAsync(this.persistence.value?.set(undefined));
-        if (error) throw error;
-
-        if (
-          environment.FORWARD_STRATEGY === ForwardStrategy.STORE_AND_FORWARD
-        ) {
-          this._stateRefresh.trigger();
-        }
+        this._setPayloadEmpty();
 
         return;
       }
@@ -293,63 +354,26 @@ export class Topic {
       // eslint-disable-next-line default-case
       switch (environment.FORWARD_STRATEGY) {
         case ForwardStrategy.TEE: {
-          const tee = piggybackReadable(stream);
-
-          this._state = tee
-            ? {
-                length,
-                stream: tee,
-              }
-            : undefined;
-
-          this._stateRefresh.trigger();
-
-          if (this.persistence.value) {
-            const [error] = await safeAsync(this.persistence.value.set(stream));
-            if (error) throw error;
-          } else {
-            const [error] = await safeAsync(buffer(stream));
-            if (error) throw error;
-          }
+          this._setPayloadTee(stream, length);
 
           break;
         }
 
         case ForwardStrategy.STORE_AND_FORWARD: {
-          if (this.persistence.value) {
-            const [error] = await safeAsync(this.persistence.value.set(stream));
-            if (error) throw error;
-
-            await sleep(0);
-            this._state = await this.persistence.value.stream;
-          } else {
-            const [error, payload] = await safeAsync(buffer(stream));
-            if (error) throw error;
-
-            this._state = payload
-              ? {
-                  length,
-                  stream: createReadableFromValue(payload),
-                }
-              : undefined;
-          }
-
-          this._stateRefresh.trigger();
-
-          if (this._state) {
-            const [error] = await safeAsync(buffer(this._state.stream));
-            if (error) throw error;
-          }
+          this._setPayloadStoreAndForward(stream, length);
 
           break;
         }
       }
 
       stream.once('error', (error) => {
+        this._state = undefined;
         throw new Error('stream error', { cause: error });
       });
 
       const [error] = await safeAsync(end);
+      this._state = undefined;
+
       if (error) throw error;
     } catch (error) {
       throw new Error(

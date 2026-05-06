@@ -1,9 +1,9 @@
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
 import { InternalServerError, NotFoundError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
-import { safeAsync } from '../../utils.js';
 import { getTopicPayload, streamTopicPayloads } from '../topic/main.js';
 import { findTopicByPath } from '../topic/state.js';
 import {

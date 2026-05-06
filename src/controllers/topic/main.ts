@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
@@ -17,7 +18,6 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { safeAsync } from '../../utils.js';
 import { matchConsumerToTopic } from '../consumer/state.js';
 import { PersistenceFilesystem } from '../persistence/filesystem.js';
 import { PersistenceMemory } from '../persistence/main.js';

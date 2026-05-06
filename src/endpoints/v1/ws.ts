@@ -1,3 +1,4 @@
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { emptyBuffer } from '@mrpelz/misc-utils/data';
 import validate from 'express-zod-safe';
 import { isWebSocket, Router } from 'websocket-express';
@@ -14,7 +15,6 @@ import {
   awaitEnd,
   createReadableFromValue,
   piggybackReadable,
-  safeAsync,
   websocketDataLength,
 } from '../../utils.js';
 import { ParamsWildcard } from '../utils.js';

@@ -11,6 +11,7 @@ export class AppError extends Error {
   readonly code: number = 500;
   readonly data: object = {};
   readonly head: string = 'Unspecified Error';
+  readonly isError: boolean = false;
   readonly name: string = 'AppError';
 
   constructor(message?: string, options?: ErrorOptions, data?: object) {
@@ -58,11 +59,20 @@ export class PayloadTooLargeError extends ClientError {
   readonly name = 'PayloadTooLargeError';
 }
 
-export class ServerError extends AppError {}
+export class ServerError extends AppError {
+  readonly isError: boolean = true;
+}
 
 export class InternalServerError extends ServerError {
   readonly head = 'Internal Server Error';
   readonly name = 'InternalServerError';
+}
+
+export class ServiceUnavailableError extends ServerError {
+  readonly code = 503;
+  readonly head = 'Service Unavailable';
+  readonly isError = false;
+  readonly name = 'ServiceUnavailableError';
 }
 
 export const validationErrorHandler: ValidationErrorRequestHandler = (
@@ -133,7 +143,7 @@ export const appErrorHandler: ErrorRequestHandler = (
   const [appError, errorChain] = unwrapAppError(error);
   const { code, data, head, message, name, stack } = appError;
 
-  logger[appError instanceof ClientError ? 'warn' : 'error'](
+  logger[appError.isError ? 'error' : 'warn'](
     {
       code,
       data,

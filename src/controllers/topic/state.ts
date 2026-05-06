@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { readFile, unlink, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { arrayCompare } from '@mrpelz/misc-utils/data';
 import z from 'zod';
 
@@ -12,7 +13,6 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { safeAsync } from '../../utils.js';
 import { directory } from '../persistence/filesystem.js';
 import { s3client } from '../persistence/s3.js';
 import { addTopic } from './main.js';

@@ -2,8 +2,7 @@
   "compilerOptions": {
     "outDir": "dist",
     "rootDir": "src",
-    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo",
-    "types": ["node"]
+    "tsBuildInfoFile": "dist/tsconfig.tsbuildinfo"
   },
   "extends": "@mrpelz/boilerplate-node/tsconfig.json",
   "include": ["src/**/*"]

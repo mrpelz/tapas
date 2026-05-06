@@ -7,26 +7,6 @@ import { makeLogger } from './logging.js';
 
 const logger = makeLogger(import.meta.filename);
 
-export const safeAsync = async <T>(
-  promise: Promise<T> | T,
-): Promise<[undefined, T] | [Error, undefined]> => {
-  try {
-    const result = await promise;
-    return [undefined, result] as const;
-  } catch (error) {
-    if (error instanceof Error) {
-      return [error, undefined] as const;
-    }
-
-    return [
-      new Error('safeAsync encountered non-error value being thrown', {
-        cause: error,
-      }),
-      undefined,
-    ] as const;
-  }
-};
-
 export const awaitEnd = (readable: Readable): Promise<void> => {
   logger.info('awaitEnd init');
 
@@ -38,7 +18,7 @@ export const awaitEnd = (readable: Readable): Promise<void> => {
   });
 
   readable.once('error', (cause) => {
-    logger.info('awaitEnd error');
+    logger.error('awaitEnd error');
     reject(cause);
   });
 
@@ -55,15 +35,13 @@ export const abortOnLengthExceeeded = (
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const onData = (chunk: any) => {
-    logger.info('abortOnLengthExceeeded data');
-
     if (!(chunk instanceof Buffer)) return;
 
     accumulatedLength += chunk.length;
 
     if (accumulatedLength <= length) return;
 
-    logger.info('abortOnLengthExceeeded exceed');
+    logger.error('abortOnLengthExceeeded exceed');
 
     readable.destroy(
       new PayloadTooLargeError(
@@ -90,11 +68,7 @@ export const piggybackReadable = (
   });
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const onData = (chunk: any) => {
-    logger.info('piggybackReadable data');
-
-    return tee.push(chunk);
-  };
+  const onData = (chunk: any) => tee.push(chunk);
 
   readable.on('data', onData);
 
@@ -106,10 +80,11 @@ export const piggybackReadable = (
   });
   readable.once('close', () => {
     logger.info('piggybackReadable close');
+
     tee.destroy();
   });
   readable.once('error', (error) => {
-    logger.info('piggybackReadable error');
+    logger.error('piggybackReadable error');
 
     tee.destroy(error);
   });

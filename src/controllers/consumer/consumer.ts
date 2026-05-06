@@ -1,10 +1,10 @@
+import { safeAsync } from '@mrpelz/misc-utils/async';
 import { Observable } from '@mrpelz/observable';
 import { NullState, ReadOnlyNullState } from '@mrpelz/observable/state';
 import z from 'zod';
 
 import { InternalServerError } from '../../endpoints/error.js';
 import { makeLogger } from '../../logging.js';
-import { safeAsync } from '../../utils.js';
 import {
   futurizePayloadType,
   GetPayloadType,

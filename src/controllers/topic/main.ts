@@ -240,6 +240,7 @@ export const streamTopicPayloads = (
 export const setTopicPayload = async (
   topicPath: z.infer<typeof TopicPath>,
   body?: ReadableStreamWithLength,
+  wait?: boolean,
 ): Promise<Topic> => {
   try {
     const topic = findTopicByPath(topicPath);
@@ -249,7 +250,7 @@ export const setTopicPayload = async (
       );
     }
 
-    const [error] = await safeAsync(topic.setPayload(body));
+    const [error] = await safeAsync(topic.setPayload(body, wait));
     if (error) throw error;
 
     return topic;

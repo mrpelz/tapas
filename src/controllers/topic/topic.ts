@@ -80,6 +80,7 @@ export const futurizePayloadType = (
 };
 
 export class Topic {
+  private _ready?: Promise<void>;
   private _state?: ReadableStreamWithLength;
 
   private readonly _stateRefresh = new NullState();
@@ -326,13 +327,20 @@ export class Topic {
   }
 
   // eslint-disable-next-line @typescript-eslint/member-ordering
-  async setPayload(value: ReadableStreamWithLength | undefined): Promise<void> {
+  async setPayload(
+    value: ReadableStreamWithLength | undefined,
+    wait = false,
+  ): Promise<void> {
     const { length, stream } = value ?? {};
 
     if (this._state) {
-      logger.warn('denying set payload while other upload is taking place');
-
-      throw new ServiceUnavailableError('upload in progress');
+      if (wait && this._ready) {
+        logger.info('waiting for other upload to complete');
+        await this._ready;
+      } else {
+        logger.warn('denying set payload while other upload is taking place');
+        throw new ServiceUnavailableError('upload in progress');
+      }
     }
 
     if (length === 0) {
@@ -341,9 +349,12 @@ export class Topic {
       return;
     }
 
+    const { promise, resolve } = Promise.withResolvers<void>();
+    this._ready = promise;
+
     try {
       if (!length || !stream) {
-        this._setPayloadEmpty();
+        await this._setPayloadEmpty();
 
         return;
       }
@@ -354,32 +365,38 @@ export class Topic {
       // eslint-disable-next-line default-case
       switch (environment.FORWARD_STRATEGY) {
         case ForwardStrategy.TEE: {
-          this._setPayloadTee(stream, length);
+          const [error] = await safeAsync(this._setPayloadTee(stream, length));
+          if (error) throw error;
 
           break;
         }
 
         case ForwardStrategy.STORE_AND_FORWARD: {
-          this._setPayloadStoreAndForward(stream, length);
+          const [error] = await safeAsync(
+            this._setPayloadStoreAndForward(stream, length),
+          );
+          if (error) throw error;
 
           break;
         }
       }
 
       stream.once('error', (error) => {
-        this._state = undefined;
         throw new Error('stream error', { cause: error });
       });
 
       const [error] = await safeAsync(end);
-      this._state = undefined;
-
       if (error) throw error;
     } catch (error) {
       throw new Error(
         `failed to set payload\n  ${error instanceof Error ? error.message : ''}`,
         { cause: error },
       );
+    } finally {
+      resolve();
+      this._ready = undefined;
+
+      this._state = undefined;
     }
   }
 }

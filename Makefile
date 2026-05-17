@@ -2,6 +2,8 @@ BASE_FILE := $(shell npm ls --parseable --silent "@mrpelz/boilerplate-node" 2>/d
 
 include $(BASE_FILE)/Makefile
 
+PACKAGE_LOCK_LINT_ARGS := $(PACKAGE_LOCK_LINT_ARGS) git.i.wurstsalat.cloud
+
 .PHONY: .PHONY \
 	util_generate_openapi \
 	util_generate_openapi_build \

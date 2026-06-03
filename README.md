@@ -14,7 +14,7 @@ Use environment variables or an `.env`-file to configure tapas.
 | ALLOW_DYNAMIC_TOPICS | Allow dynamic creation/modification/deletion of topics | stringbool | optional | true |
 | ALLOW_EPHEMERAL_TOPICS | Allow ephemeral topics (see below) | stringbool | optional | true |
 | ALLOW_OPPORTUNISTIC_CONNECTIONS | Allow connections that seek to consume topics which do not exist, yet (see below) | stringbool | optional | true |
-| ALLOW_PING_PONG_CUSTOMIZATION | Allow per-topic customization of WebSocket ping-pong interval | stringbool | optional | true |
+| ALLOW_PING_PONG_CUSTOMIZATION | Allow per-request customization of WebSocket ping-pong interval | stringbool | optional | true |
 | CONNECTION_TIMEOUT | define global connection timeout (milliseconds), is not used for WebSocket connections past protocol-switch | number (positive integer) | optional | — |
 | FALLBACK_CONTENT_TYPE | Define Content-Type used if topic doesn’t define one | string (matching MIME type formatting, i.e. “application/json”) | optional | application/octet-stream |
 | FALLBACK_EXPIRATION | Define payload expiration if not defined by topic | number (positive integer) | optional | — |

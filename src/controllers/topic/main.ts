@@ -266,6 +266,12 @@ export const removeTopic = async (
   topicPath: z.infer<typeof TopicPath>,
 ): Promise<Topic> => {
   try {
+    if (!environment.ALLOW_DYNAMIC_TOPICS) {
+      throw new MethodNotAllowedError(
+        String.raw`'ALLOW_DYNAMIC_TOPICS' is false`,
+      );
+    }
+
     const topic = findTopicByPath(topicPath);
     if (!topic) {
       throw new NotFoundError(

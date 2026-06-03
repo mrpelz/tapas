@@ -3,7 +3,7 @@ import { Router } from 'express';
 import validate from 'express-zod-safe';
 import z from 'zod';
 
-import { addTopic } from '../../controllers/topic/main.js';
+import { addTopic, removeTopic } from '../../controllers/topic/main.js';
 import {
   ContentType,
   environment,
@@ -11,7 +11,7 @@ import {
   PersistenceType,
 } from '../../environment.js';
 import { makeLogger } from '../../logging.js';
-import { MethodNotAllowedError } from '../error.js';
+import { BadRequestError, MethodNotAllowedError } from '../error.js';
 import { getBodyReadable, makeHeaders, ParamsNonWildcard } from '../utils.js';
 
 const logger = makeLogger(import.meta.filename);
@@ -20,6 +20,11 @@ export const post = Router({ mergeParams: true });
 
 const Query = z.object({
   contentType: ContentType.default(environment.FALLBACK_CONTENT_TYPE),
+  ephemeral: environment.ALLOW_EPHEMERAL_TOPICS
+    ? z.stringbool().default(false)
+    : z.never(
+        String.raw`'ephemeral' cannot be used if ALLOW_EPHEMERAL_TOPICS is false`,
+      ),
   expire:
     /* eslint-disable prettier/prettier */
     // eslint-disable-next-line no-nested-ternary
@@ -55,17 +60,29 @@ post.use(validation, async (request, response, next) => {
     );
   }
 
+  const bodyReadable = getBodyReadable(request);
+
+  if (query.ephemeral && !bodyReadable) {
+    throw new BadRequestError(
+      String.raw`'ephemeral' topics need to supply payload body`,
+    );
+  }
+
   const topic = await addTopic(
     params.path,
     query.contentType,
     undefined,
     query.persist,
     query.expire,
-    undefined,
-    getBodyReadable(request),
+    query.ephemeral,
+    bodyReadable,
   );
 
   logger.info({ topic });
+
+  if (query.ephemeral) {
+    await removeTopic(topic.path);
+  }
 
   response.set(makeHeaders(topic));
   response.statusCode = 201;

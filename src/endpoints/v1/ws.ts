@@ -1,5 +1,6 @@
 import { safeAsync } from '@mrpelz/misc-utils/async';
 import { emptyBuffer } from '@mrpelz/misc-utils/data';
+import { Timer } from '@mrpelz/observable/timer';
 import validate from 'express-zod-safe';
 import { isWebSocket, Router } from 'websocket-express';
 import z from 'zod';
@@ -37,6 +38,14 @@ const Query = z.object({
     : z.never(
         String.raw`'ALLOW_OPPORTUNISTIC_CONNECTIONS' is false, cannot use opportunistic`,
       ),
+  pingpong: environment.ALLOW_PING_PONG_CUSTOMIZATION
+    ? z.coerce
+        .number()
+        .positive()
+        .int()
+        .min(1000)
+        .default(environment.PING_PONG_INTERVAL)
+    : z.never().transform(() => environment.PING_PONG_INTERVAL),
   type: z
     .enum(GetPayloadType)
     .refine(
@@ -81,7 +90,21 @@ ws.use(validation, async (request, response, next) => {
       : getConsumerTopic(params.path);
 
   const websocket = await response.accept();
-  websocket.addEventListener('close', () => abort.abort());
+  websocket.addListener('close', () => abort.abort());
+
+  const pingSendInterval = setInterval(() => {
+    logger.info('sending ping');
+    websocket.ping();
+  }, query.pingpong);
+
+  const pongReceiveTimer = new Timer(query.pingpong * 2);
+  pongReceiveTimer.observe(() => websocket.close());
+  pongReceiveTimer.start();
+
+  websocket.addListener('pong', () => {
+    logger.info('received pong, restarting connection close timer');
+    pongReceiveTimer.start();
+  });
 
   const observer = emitState?.observe(async ([, { length, stream } = {}]) => {
     if (websocket.readyState !== websocket.OPEN) return;
@@ -114,7 +137,7 @@ ws.use(validation, async (request, response, next) => {
   if (ingestTopic) {
     logger.info({ topic: ingestTopic });
 
-    websocket.addEventListener('message', async ({ data }) => {
+    websocket.addListener('message', async (data) => {
       const length = websocketDataLength(data);
       const stream = createReadableFromValue(data);
 
@@ -139,6 +162,8 @@ ws.use(validation, async (request, response, next) => {
 
   abort.signal.addEventListener('abort', () => {
     observer?.remove();
+    clearInterval(pingSendInterval);
+    pongReceiveTimer.disable();
 
     logger.info(
       {

@@ -64,14 +64,12 @@ export const makeHeaders = (
 
     const result = {
       'content-type': topic.contentType,
-      ...(persistence?.lastModified.value
-        ? {
-            'last-modified': persistence?.lastModified.value?.toString(),
-          }
-        : {}),
-      ...(persistence?.expiresAt.value
-        ? { 'x-tapas-expires-at': persistence?.expiresAt.value?.toString() }
-        : {}),
+      ...(persistence?.lastModified.value && {
+        'last-modified': persistence?.lastModified.value?.toString(),
+      }),
+      ...(persistence?.expiresAt.value && {
+        'x-tapas-expires-at': persistence?.expiresAt.value?.toString(),
+      }),
       'x-tapas-settings': (() => {
         const params = new URLSearchParams();
         params.set('persist', JSON.stringify(Boolean(topic.persistence)));

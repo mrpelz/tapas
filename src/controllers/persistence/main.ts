@@ -117,6 +117,4 @@ export class PersistenceMemory extends Persistence {
 }
 
 export type TPersistence =
-  | PersistenceMemory
-  | PersistenceFilesystem
-  | PersistenceS3;
+  PersistenceMemory | PersistenceFilesystem | PersistenceS3;

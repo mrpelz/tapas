@@ -43,8 +43,7 @@ export type ReadableStreamWithLength = {
 };
 
 export type GetPayloadResult<T extends GetPayloadType> = T extends
-  | GetPayloadType.FUTURE_NON_EMPTY
-  | GetPayloadType.NON_EMPTY
+  GetPayloadType.FUTURE_NON_EMPTY | GetPayloadType.NON_EMPTY
   ? ReadableStreamWithLength
   : ReadableStreamWithLength | undefined;
 
@@ -175,11 +174,11 @@ export class Topic {
     this._stateRefresh.trigger();
 
     if (this.persistence.value) {
-      const [error] = await safeAsync(this.persistence.value.set(stream));
-      if (error) throw error;
+      const [error0] = await safeAsync(this.persistence.value.set(stream));
+      if (error0) throw error0;
     } else {
-      const [error] = await safeAsync(buffer(stream));
-      if (error) throw error;
+      const [error1] = await safeAsync(buffer(stream));
+      if (error1) throw error1;
     }
   }
 

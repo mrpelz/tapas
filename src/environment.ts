@@ -107,12 +107,10 @@ export const environment = (() => {
   makeLogger(import.meta.filename).info(
     {
       ...environment,
-      ...('S3_ACCESS_KEY' in environment && environment.S3_ACCESS_KEY
-        ? { S3_ACCESS_KEY: '***' }
-        : {}),
-      ...('S3_SECRET_KEY' in environment && environment.S3_SECRET_KEY
-        ? { S3_SECRET_KEY: '***' }
-        : {}),
+      ...('S3_ACCESS_KEY' in environment &&
+        environment.S3_ACCESS_KEY && { S3_ACCESS_KEY: '***' }),
+      ...('S3_SECRET_KEY' in environment &&
+        environment.S3_SECRET_KEY && { S3_SECRET_KEY: '***' }),
     },
     'environment loaded',
   );

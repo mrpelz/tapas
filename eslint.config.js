@@ -1,5 +1,12 @@
-// @ts-ignore
-import config from '@mrpelz/boilerplate-node/eslint.config.js';
+import {
+  config,
+  configMeta,
+  // @ts-ignore
+} from '@mrpelz/boilerplate-node/eslint.config.js';
+
+if (config.rules) {
+  config.rules['unicorn/prefer-string-raw'] = 'off';
+}
 
 /** @type {import('eslint').Linter.Config[]} */
-export default config;
+export default [configMeta, config];

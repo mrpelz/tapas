@@ -14,7 +14,8 @@
   "types": "dist/main.d.ts",
   "files": [
     "dist/**/*.{js,map,ts}",
-    "Dockerfile"
+    "Dockerfile",
+    "npm-shrinkwrap.json"
   ],
   "dependencies": {
     "@bradenmacdonald/s3-lite-client": "0.9.6",
